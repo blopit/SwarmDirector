@@ -1,0 +1,54 @@
+SwarmDirector - Hierarchical AI Agent System
+
+SUMMARY
+This document outlines the full software design for the prototype phase of our hierarchical AI agent system, detailing architecture, components, data storage, API design, non-functional requirements, and a development timeline for rapid iteration. We leverage Flask for backend routing, SQLite for embedded data storage, and Microsoft's AutoGen framework for agent orchestration, enabling a lightweight yet functional proof of concept. This lean setup facilitates quick feedback loops without heavy infrastructure and supports core flows including Director routing, parallel draft reviews, and streaming agents.
+
+OBJECTIVES
+The prototype's primary objective is to validate the Director → CommunicationsDept → EmailAgent workflow end-to-end, including self-review by multiple DraftReviewAgents for high accuracy. We also aim to demonstrate autogen streaming agents at the edge for low-latency interactions and lay groundwork for future department additions.
+
+HIGH-LEVEL ARCHITECTURE
+The system comprises three core agent classes: DirectorAgent, CommunicationsDept, and EmailAgent. DirectorAgent is exposed via a Flask HTTP endpoint and routes incoming task requests based on a simple keyword-based intent classifier. CommunicationsDept chains two DraftReviewAgent instances in parallel to produce a consensus draft before delegating to EmailAgent. EmailAgent wraps SMTP functionality using Flask-Mail and Python's smtplib to send finalized messages.
+
+COMPONENT DETAILS
+
+DirectorAgent
+DirectorAgent is implemented in app.py as a Flask route at /task that accepts JSON payloads containing type and args fields. It applies a simple LLM-based or keyword-based router to dispatch tasks to the correct department's run method.
+
+CommunicationsDept
+CommunicationsDept extends AutoGen's ChatAgent class and manages message drafting workflows. It spawns two DraftReviewAgent instances via a MultiAgentChain, then merges critiques into a final draft using reconciliation logic.
+
+DraftReviewAgent
+Each DraftReviewAgent uses AutoGen to critique a draft in isolation, returning a JSON diff of suggested edits.
+
+EmailAgent
+EmailAgent is a ToolAgent configured with the Flask-Mail extension to interface with SMTP servers for email delivery. It parses the draft object for recipient, subject, and body fields and invokes mail.send to dispatch the message, returning success or error codes.
+
+DATA STORAGE
+We use SQLite for the prototype to store agent logs, task metadata, and draft versions in an embedded, file-based database. This eliminates external dependencies and simplifies setup, with migration to PostgreSQL planned for MVP.
+
+API DESIGN
+A single RESTful endpoint (POST /task) accepts JSON with type, user_id, and payload fields to centralize task submission. Responses include HTTP status codes, a task_id, and a result object containing department-specific outputs. Error handling follows standard JSON error envelopes with error_code and message fields for consistent client behavior.
+
+SEQUENCE FLOW
+Upon receiving a request, DirectorAgent logs the request in SQLite and invokes the routing logic. The routed department agent (CommunicationsDept) initiates two concurrent calls to DraftReviewAgent via AutoGen's MultiAgentChain. After collecting reviews, CommunicationsDept consolidates the critiques, finalizes the draft, and calls EmailAgent to send the email. EmailAgent uses Flask-Mail to dispatch the message and updates the task status in the database before DirectorAgent returns the result to the client.
+
+NON-FUNCTIONAL REQUIREMENTS
+The system must handle at least 10 concurrent requests during prototype demos without significant slowdown. Logs and data integrity must be preserved across crashes, leveraging SQLite's ACID compliance. Response times should remain under 500 ms for individual API calls under typical demo workloads. The prototype must support autogen streaming without token loss, ensuring real-time feedback for edge agents.
+
+PROTOTYPE TIMELINE
+Week 1: Set up project skeleton with Flask service and SQLite schema
+Week 2: Implement DirectorAgent and basic routing logic
+Week 3: Develop CommunicationsDept and integrate parallel DraftReviewAgents
+Week 4: Build EmailAgent with SMTP integration and test end-to-end email flow
+Week 5: Add autogen streaming edge interface and complete end-to-end prototype demo
+
+TECHNICAL REQUIREMENTS
+- Python 3.8+ with Flask web framework
+- SQLite database for prototype data storage
+- Microsoft AutoGen framework for agent orchestration
+- Flask-Mail for SMTP email integration
+- REST API with JSON request/response format
+- Multi-agent parallel processing capabilities
+- Streaming agent interface for real-time feedback
+- Error handling and logging system
+- Database migrations support for future PostgreSQL transition 

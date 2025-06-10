@@ -1,0 +1,107 @@
+---
+description: Standards for consistent, usable documentation across the project
+globs: docs/*.md
+alwaysApply: false
+---
+
+# Documentation Standards
+
+## Document Structure
+- **Include metadata header in all docs**
+  - Document version number
+  - Last updated date
+  - Author information
+  - Example: `<!-- Version: 1.0 • Last updated: 2023-05-20 • Author: Team Mantra -->`
+
+- **Use consistent project naming**
+  - Refer to the project as "Mantra" in all documentation
+  - Avoid alternate names like "Integration Manager" unless explicitly noting the change
+
+- **Follow hierarchical heading structure**
+  - Use single level-1 heading (`#`) for document title
+  - Use level-2 headings (`##`) for main sections
+  - Use level-3 headings (`###`) for subsections
+  - Avoid skipping levels
+
+- **Standardize section formatting**
+  - Use consistent separators in headings (prefer colons over hyphens)
+  - Example: `## 4. Core Features: Detailed` not `## 4. Core Features - Detailed`
+
+- **Maintain consistent list formatting**
+  - Use hyphens (`-`) for all bullet points
+  - Use numbered lists only for sequential steps or prioritized items
+
+## Technical Accuracy
+
+- **Include explicit version information**
+  - Specify versions for all technologies mentioned
+  - Example: `FastAPI (0.95.0)` instead of just `FastAPI`
+
+- **Link to relevant code**
+  - Reference actual code files when describing implementation
+  - Use format: `[See src/module/file.py](mdc:src/module/file.py)`
+
+- **Provide complete context**
+  - Avoid references to external documents without links
+  - Include or link to referenced content (like "12-point plan")
+  - Define acronyms and technical terms on first use
+
+## Document Templates
+
+- **Use the latest template versions**
+  - Templates should be kept in `docs/templates/`
+  - Reference template version in new documents
+
+- **Maintain consistent placeholder syntax**
+  - Use plain square brackets without escaping: `[Example]`
+  - Replace all placeholders when using templates
+
+- **Follow code block formatting standards**
+  - Use triple backticks for all code blocks
+  - Include language identifier: ```python
+  - For nested code blocks, ensure proper escaping
+
+## Status Tracking
+
+- **Use standard status indicators**
+  - ✅ Done
+  - 🚧 In Progress
+  - 📅 Planned
+  - ❌ Blocked/Not Started
+
+- **Document completeness levels**
+  - Mark draft sections with `[DRAFT]`
+  - Mark sections needing review with `[REVIEW]`
+  - Mark outdated content with `[OUTDATED]`
+
+## Common Documentation Types
+
+- **Architecture documents**
+  - Include diagrams with technology annotations
+  - Cover error handling and observability
+  - Specify deployment details and environments
+
+- **Product requirements**
+  - Include assumptions and constraints section
+  - Define clear acceptance criteria
+  - List non-functional requirements
+
+- **Implementation guides**
+  - Provide implementation status
+  - Include examples or demos
+  - Link to relevant code files
+
+## Human Tasks Creation
+
+- **Create a task in `tasks/human/` when:**
+  - Documentation requires significant restructuring
+  - Conflicting information needs resolution
+  - Multiple documentation standards issues accumulate
+  - New document templates are needed
+  - Diagrams need updating or creation
+
+- **Human task format**
+  - Filename: `YYYY-MM-DD-short-description.md`
+  - Include clear action items with checkboxes
+  - Specify priority level
+  - List affected documents

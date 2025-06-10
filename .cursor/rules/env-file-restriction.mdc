@@ -1,0 +1,39 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Environment File Restriction Rule
+
+## Forbidden Actions
+- **Never create .env files** using any file creation tools
+- **Never edit existing .env files** using edit tools
+- **Never modify environment variables** directly in files
+
+## Required Process
+- **Create tasks in tasks/human** when environment configuration is needed
+- **Document exactly what needs to be changed** in the task
+- **Explain why the change is necessary** for the user to understand
+- **Provide the exact values** that should be set
+
+## Task Creation Guidelines
+- Use clear, descriptive task titles
+- Include step-by-step instructions
+- List all required environment variables
+- Explain the impact of each variable
+- Reference related configuration files
+
+## Examples
+```markdown
+# ✅ DO: Create human task
+Create task: "Configure NEXT_PUBLIC_API_URL in .env file"
+
+# ❌ DON'T: Edit directly
+edit_file(".env", "NEXT_PUBLIC_API_URL=...")
+```
+
+## Security Reasons
+- Environment files contain sensitive data
+- Direct editing bypasses security reviews
+- Human oversight prevents accidental exposure
+- Maintains audit trail of configuration changes
