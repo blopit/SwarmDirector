@@ -22,13 +22,25 @@ class TaskPriority(enum.Enum):
     HIGH = "high"
     CRITICAL = "critical"
 
+class TaskType(enum.Enum):
+    """Enumeration for task types"""
+    EMAIL = "email"
+    COMMUNICATION = "communication"
+    ANALYSIS = "analysis"
+    REVIEW = "review"
+    RESEARCH = "research"
+    DEVELOPMENT = "development"
+    OTHER = "other"
+
 class Task(BaseModel):
     """Task model representing work assignments"""
     __tablename__ = 'tasks'
     
-    # Basic task information
+    # Basic task information (as specified in requirements: id, type, user_id, status, created_at, updated_at)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
+    type = db.Column(Enum(TaskType), nullable=False, default=TaskType.OTHER)  # Required field from task spec
+    user_id = db.Column(db.String(100), nullable=True)  # Required field from task spec
     status = db.Column(Enum(TaskStatus), nullable=False, default=TaskStatus.PENDING)
     priority = db.Column(Enum(TaskPriority), nullable=False, default=TaskPriority.MEDIUM)
     
@@ -61,6 +73,8 @@ class Task(BaseModel):
         """Convert task to dictionary with relationships"""
         data = super().to_dict()
         data.update({
+            'type': self.type.value,
+            'user_id': self.user_id,
             'status': self.status.value,
             'priority': self.priority.value,
             'assigned_agent_id': self.assigned_agent_id,

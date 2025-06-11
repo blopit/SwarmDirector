@@ -7,5 +7,8 @@ from .base import db
 from .agent import Agent
 from .task import Task
 from .conversation import Conversation
+from .agent_log import AgentLog
+from .draft import Draft
+from .email_message import EmailMessage
 
-__all__ = ['db', 'Agent', 'Task', 'Conversation'] 
+__all__ = ['db', 'Agent', 'Task', 'Conversation', 'AgentLog', 'Draft', 'EmailMessage'] 
