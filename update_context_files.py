@@ -40,25 +40,30 @@ class ContextFileUpdater:
             except yaml.YAMLError:
                 issues.append("Invalid YAML frontmatter")
         
-        # Check for required sections
+        # Check for required sections (both old and new formats)
         required_sections = [
-            '🎯 Overview',
-            '📋 Metadata', 
-            '🗒️ Scope, Assumptions & Constraints',
-            '🔍 Detailed Description',
-            '📁 Reference Artifacts & Files',
-            '🔧 Interfaces & Code Snippets',
-            '🛠️ Implementation Plan',
-            '🧪 Testing & QA',
-            '🔗 Integration & Related Tasks',
-            '⚠️ Risks & Mitigations',
-            '✅ Success Criteria',
-            '🚀 Next Steps'
+            ('🎯 Overview', '🎯 Task Overview', '🎯 Subtask Overview'),
+            ('📋 Metadata', '📋 Metadata'),
+            ('🗒️ Scope, Assumptions & Constraints', '🗒️ Scope, Assumptions & Constraints'),
+            ('🔍 Detailed Description', '🔍 1. Detailed Description'),
+            ('📁 Reference Artifacts & Files', '📁 2. Reference Artifacts & Files'),
+            ('🔧 Interfaces & Code Snippets', '🔧 3. Interfaces & Code Snippets'),
+            ('🛠️ Implementation Plan', '🛠️ 5. Implementation Plan'),
+            ('🧪 Testing & QA', '🧪 6. Testing & QA'),
+            ('🔗 Integration & Related Tasks', '🔗 7. Integration & Related Tasks'),
+            ('⚠️ Risks & Mitigations', '⚠️ 8. Risks & Mitigations'),
+            ('✅ Success Criteria', '✅ 9. Success Criteria'),
+            ('🚀 Next Steps', '🚀 10. Next Steps')
         ]
-        
-        for section in required_sections:
-            if section not in content:
-                issues.append(f"Missing section: {section}")
+
+        for section_variants in required_sections:
+            section_found = False
+            for variant in section_variants:
+                if variant in content:
+                    section_found = True
+                    break
+            if not section_found:
+                issues.append(f"Missing section: {section_variants[0]}")
         
         # Check for specific version numbers in dependencies
         if '📦' in content and 'Dependencies' in content:
