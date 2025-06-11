@@ -127,16 +127,26 @@ class TestCommunicationsDept:
             }
         }
         
-        mock_executor.return_value.__enter__.return_value.submit.return_value = mock_future
-        mock_executor.return_value.__enter__.return_value.__iter__ = Mock(return_value=iter([mock_future]))
+        mock_executor_instance = Mock()
+        mock_executor_instance.__enter__ = Mock(return_value=mock_executor_instance)
+        mock_executor_instance.__exit__ = Mock(return_value=None)
+        mock_executor_instance.submit.return_value = mock_future
+        mock_executor.return_value = mock_executor_instance
         
         # Mock as_completed to return our future
         with patch('swarm_director.agents.communications_dept.as_completed', return_value=[mock_future]):
-            # Mock Task creation and save
+            # Mock Task creation and save to avoid database operations
             with patch('swarm_director.models.task.Task') as mock_task_class:
                 mock_task_instance = Mock()
+                mock_task_instance.id = 123
                 mock_task_instance.save = Mock()
                 mock_task_class.return_value = mock_task_instance
+                
+                # Mock the review agents to ensure we have some
+                mock_review_agent = Mock()
+                mock_review_agent.name = "TestReviewAgent"
+                communications_dept.review_agents = [mock_review_agent]
+                communications_dept.min_reviewers = 1  # Ensure we meet minimum requirements
                 
                 with app.app_context():
                     result = communications_dept._conduct_parallel_review(sample_task, "test content")
