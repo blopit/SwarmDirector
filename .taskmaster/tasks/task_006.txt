@@ -1,0 +1,44 @@
+# Task ID: 6
+# Title: Implement DraftReviewAgent
+# Status: pending
+# Dependencies: 4
+# Priority: medium
+# Description: Create the DraftReviewAgent that uses AutoGen to critique drafts in isolation and return JSON diffs of suggested edits.
+# Details:
+1. Create DraftReviewAgent class in agents/review.py
+2. Configure AutoGen for draft review capabilities
+3. Implement review method to critique draft content
+4. Create JSON diff generator for suggested edits
+5. Add validation for review outputs
+6. Implement scoring mechanism for draft quality
+7. Create utility functions for common review operations
+8. Add logging for review process
+9. Implement error handling for malformed drafts
+
+# Test Strategy:
+1. Test review functionality with various draft qualities
+2. Verify JSON diff generation is correct
+3. Validate scoring mechanism accuracy
+4. Test error handling with malformed inputs
+5. Benchmark review performance
+6. Verify isolation between multiple review instances
+
+# Subtasks:
+## 1. Implement Review Logic Component [pending]
+### Dependencies: None
+### Description: Create a separate module for handling the core review logic of the DraftReviewAgent
+### Details:
+Develop a dedicated ReviewLogic class that encapsulates the draft analysis functionality. This component should handle parsing input drafts, identifying key elements to review, and generating textual feedback. Include methods for different types of reviews (content, structure, style) and ensure the component can work independently of the other parts of the system.
+
+## 2. Develop JSON Diff Generation Component [pending]
+### Dependencies: 6.1
+### Description: Create a specialized component for generating structured JSON diffs between drafts
+### Details:
+Build a DiffGenerator class that takes two versions of content and produces a structured JSON representation of their differences. Implement algorithms to detect additions, deletions, modifications, and moves within the content. Ensure the diff format is consistent and includes metadata such as change types, locations, and severity levels. This component should be reusable across different review contexts.
+
+## 3. Implement Quality Scoring Component [pending]
+### Dependencies: 6.1
+### Description: Develop a separate module for quantitative assessment of draft quality
+### Details:
+Create a QualityScorer class that evaluates drafts against predefined criteria and generates numerical scores. Implement scoring algorithms for various quality dimensions (clarity, coherence, grammar, etc.). Include methods for score normalization, aggregation, and comparison between drafts. Design the component to be configurable with different scoring rubrics and thresholds depending on the context.
+

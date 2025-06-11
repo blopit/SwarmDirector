@@ -1,85 +1,160 @@
 ---
 task_id: task_002
 subtask_id: subtask_002
-title: Implement Database Schema and Models
-status: pending
-priority: medium
+title: Relationship Configuration Phase
+status: done
+priority: high
 parent_task: task_002
-dependencies: []
+dependencies: [subtask_001]
 created: 2025-06-10
-updated: 2025-06-10
+updated: 2025-06-11
 ---
 
 # 🎯 Subtask Overview
-Design and implement the SQLite database schema for storing agent logs, task metadata, and draft versions.
+Establish connections between defined models through foreign keys and relationship types, configuring cardinality and ensuring referential integrity constraints.
 
 ## 📋 Metadata
 - **ID**: task_002 / subtask_002
-- **Title**: Implement Database Schema and Models
-- **Status**: pending
-- **Priority**: medium
+- **Title**: Relationship Configuration Phase
+- **Status**: done ✅
+- **Priority**: high
 - **Parent Task**: task_002
-- **Dependencies**: []
-- **Created / Updated**: 2025-06-10
+- **Dependencies**: [subtask_001]
+- **Created**: 2025-06-10
+- **Updated**: 2025-06-11
+- **Completion Date**: 2025-06-11
+
+## 🏗️ Repository Reorganization Context
+
+**Note**: This task context has been updated to reflect the comprehensive repository reorganization completed on 2025-06-11.
+
+### Key Changes:
+- **Source code** moved to `src/swarm_director/` package structure
+- **Tests** organized in dedicated `tests/` directory
+- **Documentation** structured in `docs/` with comprehensive guides
+- **Database files** organized in `database/` directory
+- **Utility scripts** moved to `scripts/` directory
+- **Examples** placed in `examples/` directory
+
+### New Project Benefits:
+- ✅ Professional Python package structure
+- ✅ Comprehensive documentation (15+ guides)
+- ✅ Improved developer experience with setup tools
+- ✅ Clear separation of concerns
+- ✅ Industry-standard organization
+
+### Updated References:
+All file paths and import statements in this context have been updated to reflect the new structure. See `docs/PROJECT_STRUCTURE.md` for complete details.
+
+---
 
 ## 🗒️ Scope, Assumptions & Constraints
 
 ### In Scope:
-- Specific deliverable 1 with detailed requirements
-- Specific deliverable 2 with technical specifications
-- Specific deliverable 3 with integration requirements
+- Foreign key relationships between all models
+- SQLAlchemy relationship definitions with backref
+- Cardinality configuration (one-to-one, one-to-many, many-to-many)
+- Referential integrity constraints and cascade behavior
+- Join table implementation where necessary
+- Relationship navigation and lazy loading configuration
+- Constraint validation and error handling
 
 ### Out of Scope:
-- Features not explicitly mentioned in requirements
-- Advanced features for future iterations
-- External system integrations beyond specified scope
+- Database utility functions and management tools (covered in subtask 2.3)
+- Performance optimization and indexing (covered in subtask 2.3)
+- Migration scripts and schema versioning (covered in subtask 2.3)
+- Advanced relationship features like polymorphic associations
 
 ### Assumptions:
-- Python 3.8+ environment available and configured
-- Required dependencies installed and accessible
-- Development environment properly set up
+- Model definitions are complete (subtask 2.1 completed)
+- SQLAlchemy supports the required relationship types
+- Foreign key constraints are enforced by the database
+- Cascade behavior is properly configured to maintain data integrity
+- Lazy loading is acceptable for initial implementation
 
 ### Constraints:
-- Must maintain compatibility with existing system components
-- Must follow established coding standards and patterns
-- Must complete within specified performance requirements
+- Must maintain referential integrity at all times
+- Must use SQLAlchemy relationship conventions
+- Must provide bidirectional navigation where appropriate
+- Must handle cascade deletes safely
+- Must support efficient query patterns
 
 ---
 
 ## 🔍 1. Detailed Description
 
-Comprehensive description of the implementation requirements, including:
+This subtask configures the relationships between all database models, establishing proper foreign key constraints and SQLAlchemy relationships to enable efficient data navigation and maintain referential integrity.
 
 ### Technical Requirements:
-- Specific technical specifications
-- Performance requirements and benchmarks
-- Integration requirements with existing systems
+- **Foreign Key Constraints**: Proper FK definitions between related tables
+- **SQLAlchemy Relationships**: Bidirectional relationships with backref
+- **Cascade Configuration**: Appropriate cascade behavior for data integrity
+- **Lazy Loading**: Efficient loading strategies for related data
+- **Join Configuration**: Proper join conditions for complex relationships
+- **Constraint Validation**: Database-level constraint enforcement
 
 ### Functional Requirements:
-- User-facing functionality specifications
-- Business logic requirements
-- Data processing requirements
+- **Data Navigation**: Easy navigation between related entities
+- **Referential Integrity**: Automatic enforcement of data consistency
+- **Cascade Operations**: Proper handling of dependent record operations
+- **Query Efficiency**: Optimized relationship queries and joins
+- **Data Consistency**: Prevention of orphaned records and invalid references
 
 ### Implementation Components:
-1. **Component 1**: Detailed implementation description
-2. **Component 2**: Detailed implementation description
-3. **Component 3**: Detailed implementation description
+1. **Task Relationships**: Links to AgentLog, Draft, and EmailMessage models
+2. **Agent Relationships**: Connections to Task and AgentLog models
+3. **Draft Relationships**: Links to Task and Agent models for authoring/reviewing
+4. **EmailMessage Relationships**: Connections to Task and Draft models
+5. **Cascade Configuration**: Proper cascade behavior for all relationships
+6. **Backref Setup**: Bidirectional navigation between all related models
 
 ## 📁 2. Reference Artifacts & Files
 
 ### Primary Implementation Files:
 ```
-task_002/
-├── main_module.py          # Primary implementation
-├── config.py               # Configuration settings
-├── utils.py                # Utility functions
-└── tests/
-    ├── test_main.py        # Unit tests
-    └── test_integration.py # Integration tests
+SwarmDirector/
+├── src/                          # Source code
+│   └── swarm_director/          # Main application package
+│       ├── __init__.py          # Package initialization
+│       ├── app.py               # Flask application
+│       ├── config.py            # Configuration
+│       ├── agents/              # AI agent implementations
+│       ├── models/              # Database models
+│       ├── utils/               # Utility functions
+│       └── web/                 # Web interface
+│           ├── static/          # Static assets
+│           └── templates/       # Jinja2 templates
+├── tests/                       # Test suite
+├── scripts/                     # Utility scripts
+├── examples/                    # Demo applications
+├── docs/                        # Documentation
+│   ├── api/                     # API documentation
+│   ├── architecture/            # System architecture
+│   ├── deployment/              # Deployment guides
+│   └── development/             # Development guides
+├── database/                    # Database files and schemas
+│   ├── schemas/                 # Schema definitions
+│   ├── migrations/              # Alembic migrations
+│   └── data/                    # Database files
+├── reports/                     # Generated reports
+└── logs/                        # Application logs
 ```
 
 ### Configuration Files:
-- **config.py**: Application configuration
+- **src/swarm_director/config.py**: Application configuration classes
+- **.env**: Environment variables (create from template)
+- **requirements.txt**: Python dependencies
+- **run.py**: Application launcher script
+
+### Key Documentation:
+- **README.md**: Project overview and quick start
+- **docs/PROJECT_STRUCTURE.md**: Detailed project organization
+- **docs/api/README.md**: API documentation
+- **docs/architecture/overview.md**: System architecture
+- **docs/development/getting_started.md**: Developer guide
+- **QUICKSTART.md**: 1-minute setup guide
+### Configuration Files:
+- **src/swarm_director/src/swarm_director/config.py**: Application configuration
 - **.env**: Environment variables
 - **requirements.txt**: Python dependencies
 
@@ -90,6 +165,50 @@ task_002/
 ---
 
 ## 🔧 3. Interfaces & Code Snippets
+### Import Structure (New Package Organization):
+```python
+# Main application
+from src.swarm_director.app import create_app
+
+# Models
+from src.swarm_director.models.agent import Agent, AgentType
+from src.swarm_director.models.task import Task, TaskStatus
+from src.swarm_director.models.conversation import Conversation
+
+# Agents
+from src.swarm_director.agents.director import DirectorAgent
+from src.swarm_director.agents.base_agent import BaseAgent
+
+# Utilities
+from src.swarm_director.utils.database import get_database_info
+from src.swarm_director.utils.logging import log_agent_action
+```
+
+### Application Startup:
+```python
+# Using the new launcher
+python run.py
+
+# Or directly
+from src.swarm_director.app import create_app
+app = create_app()
+app.run(debug=True)
+```
+
+### Development Commands:
+```bash
+# Set up development environment
+python scripts/setup_development.py
+
+# Run tests
+pytest tests/
+
+# Verify installation
+python scripts/verify_reorganization.py
+
+# Update context files
+python scripts/update_task_contexts_for_reorganization.py
+```
 
 ### 3.1 Main Implementation Class
 ```python

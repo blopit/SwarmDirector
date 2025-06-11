@@ -1,85 +1,160 @@
 ---
 task_id: task_001
 subtask_id: subtask_002
-title: Setup Project Skeleton with Flask and SQLite
-status: pending
-priority: medium
+title: Core Flask Application Configuration
+status: done
+priority: high
 parent_task: task_001
-dependencies: []
+dependencies: [subtask_001]
 created: 2025-06-10
-updated: 2025-06-10
+updated: 2025-06-11
 ---
 
 # 🎯 Subtask Overview
-Initialize the project structure with Flask framework and SQLite database setup for the hierarchical AI agent system.
+Configure the Flask application with necessary settings and create the main application file using the application factory pattern for the SwarmDirector system.
 
 ## 📋 Metadata
 - **ID**: task_001 / subtask_002
-- **Title**: Setup Project Skeleton with Flask and SQLite
-- **Status**: pending
-- **Priority**: medium
+- **Title**: Core Flask Application Configuration
+- **Status**: done ✅
+- **Priority**: high
 - **Parent Task**: task_001
-- **Dependencies**: []
-- **Created / Updated**: 2025-06-10
+- **Dependencies**: [subtask_001]
+- **Created**: 2025-06-10
+- **Updated**: 2025-06-11
+- **Completion Date**: 2025-06-11
+
+## 🏗️ Repository Reorganization Context
+
+**Note**: This task context has been updated to reflect the comprehensive repository reorganization completed on 2025-06-11.
+
+### Key Changes:
+- **Source code** moved to `src/swarm_director/` package structure
+- **Tests** organized in dedicated `tests/` directory
+- **Documentation** structured in `docs/` with comprehensive guides
+- **Database files** organized in `database/` directory
+- **Utility scripts** moved to `scripts/` directory
+- **Examples** placed in `examples/` directory
+
+### New Project Benefits:
+- ✅ Professional Python package structure
+- ✅ Comprehensive documentation (15+ guides)
+- ✅ Improved developer experience with setup tools
+- ✅ Clear separation of concerns
+- ✅ Industry-standard organization
+
+### Updated References:
+All file paths and import statements in this context have been updated to reflect the new structure. See `docs/PROJECT_STRUCTURE.md` for complete details.
+
+---
 
 ## 🗒️ Scope, Assumptions & Constraints
 
 ### In Scope:
-- Specific deliverable 1 with detailed requirements
-- Specific deliverable 2 with technical specifications
-- Specific deliverable 3 with integration requirements
+- Flask application factory pattern implementation
+- Multi-environment configuration classes (Development, Production)
+- Database connection configuration with SQLAlchemy
+- Flask extension initialization (SQLAlchemy, Migrate, Mail)
+- Basic route handlers and error handling middleware
+- Environment variable integration with python-dotenv
+- Application launcher script (run.py)
 
 ### Out of Scope:
-- Features not explicitly mentioned in requirements
-- Advanced features for future iterations
-- External system integrations beyond specified scope
+- Database schema definition (covered in subtask 1.3)
+- CRUD operations implementation (covered in subtask 1.4)
+- Advanced agent implementations (future tasks)
+- Production deployment configuration
 
 ### Assumptions:
-- Python 3.8+ environment available and configured
-- Required dependencies installed and accessible
-- Development environment properly set up
+- Virtual environment is activated (completed in subtask 1.1)
+- All dependencies are installed (completed in subtask 1.1)
+- Project directory structure exists
+- Environment variables can be configured via .env file
 
 ### Constraints:
-- Must maintain compatibility with existing system components
-- Must follow established coding standards and patterns
-- Must complete within specified performance requirements
+- Must use Flask application factory pattern for scalability
+- Must support multiple environments (development, testing, production)
+- Must integrate with SQLAlchemy for database operations
+- Must prepare for AutoGen integration in future tasks
 
 ---
 
 ## 🔍 1. Detailed Description
 
-Comprehensive description of the implementation requirements, including:
+This subtask implements the core Flask application configuration using best practices including the application factory pattern, multi-environment support, and proper extension initialization.
 
 ### Technical Requirements:
-- Specific technical specifications
-- Performance requirements and benchmarks
-- Integration requirements with existing systems
+- **Application Factory Pattern**: Implement create_app() function for flexible app creation
+- **Configuration Management**: Environment-specific configuration classes
+- **Database Integration**: SQLAlchemy setup with Flask-SQLAlchemy
+- **Migration Support**: Flask-Migrate integration for schema versioning
+- **Email Support**: Flask-Mail configuration for future email functionality
+- **Environment Variables**: Secure configuration using python-dotenv
+- **Error Handling**: Global exception handlers and user-friendly error pages
 
 ### Functional Requirements:
-- User-facing functionality specifications
-- Business logic requirements
-- Data processing requirements
+- **Multi-Environment Support**: Development, testing, and production configurations
+- **Database Connectivity**: Automatic database connection management
+- **Health Monitoring**: Basic health check endpoints
+- **Logging Integration**: Structured logging configuration
+- **Blueprint Registration**: Modular route organization
+- **Security Configuration**: Secret key management and security headers
 
 ### Implementation Components:
-1. **Component 1**: Detailed implementation description
-2. **Component 2**: Detailed implementation description
-3. **Component 3**: Detailed implementation description
+1. **Application Factory (app.py)**: Core Flask app creation with extension initialization
+2. **Configuration Classes (config.py)**: Environment-specific settings and database URLs
+3. **Application Launcher (run.py)**: Entry point with environment detection
+4. **Environment File (.env)**: Secure storage of sensitive configuration
+5. **Basic Routes**: Health check and index endpoints
+6. **Error Handlers**: Global exception handling and user-friendly error pages
 
 ## 📁 2. Reference Artifacts & Files
 
 ### Primary Implementation Files:
 ```
-task_001/
-├── main_module.py          # Primary implementation
-├── config.py               # Configuration settings
-├── utils.py                # Utility functions
-└── tests/
-    ├── test_main.py        # Unit tests
-    └── test_integration.py # Integration tests
+SwarmDirector/
+├── src/                          # Source code
+│   └── swarm_director/          # Main application package
+│       ├── __init__.py          # Package initialization
+│       ├── app.py               # Flask application
+│       ├── config.py            # Configuration
+│       ├── agents/              # AI agent implementations
+│       ├── models/              # Database models
+│       ├── utils/               # Utility functions
+│       └── web/                 # Web interface
+│           ├── static/          # Static assets
+│           └── templates/       # Jinja2 templates
+├── tests/                       # Test suite
+├── scripts/                     # Utility scripts
+├── examples/                    # Demo applications
+├── docs/                        # Documentation
+│   ├── api/                     # API documentation
+│   ├── architecture/            # System architecture
+│   ├── deployment/              # Deployment guides
+│   └── development/             # Development guides
+├── database/                    # Database files and schemas
+│   ├── schemas/                 # Schema definitions
+│   ├── migrations/              # Alembic migrations
+│   └── data/                    # Database files
+├── reports/                     # Generated reports
+└── logs/                        # Application logs
 ```
 
 ### Configuration Files:
-- **config.py**: Application configuration
+- **src/swarm_director/config.py**: Application configuration classes
+- **.env**: Environment variables (create from template)
+- **requirements.txt**: Python dependencies
+- **run.py**: Application launcher script
+
+### Key Documentation:
+- **README.md**: Project overview and quick start
+- **docs/PROJECT_STRUCTURE.md**: Detailed project organization
+- **docs/api/README.md**: API documentation
+- **docs/architecture/overview.md**: System architecture
+- **docs/development/getting_started.md**: Developer guide
+- **QUICKSTART.md**: 1-minute setup guide
+### Configuration Files:
+- **src/swarm_director/src/swarm_director/config.py**: Application configuration
 - **.env**: Environment variables
 - **requirements.txt**: Python dependencies
 
@@ -90,6 +165,50 @@ task_001/
 ---
 
 ## 🔧 3. Interfaces & Code Snippets
+### Import Structure (New Package Organization):
+```python
+# Main application
+from src.swarm_director.app import create_app
+
+# Models
+from src.swarm_director.models.agent import Agent, AgentType
+from src.swarm_director.models.task import Task, TaskStatus
+from src.swarm_director.models.conversation import Conversation
+
+# Agents
+from src.swarm_director.agents.director import DirectorAgent
+from src.swarm_director.agents.base_agent import BaseAgent
+
+# Utilities
+from src.swarm_director.utils.database import get_database_info
+from src.swarm_director.utils.logging import log_agent_action
+```
+
+### Application Startup:
+```python
+# Using the new launcher
+python run.py
+
+# Or directly
+from src.swarm_director.app import create_app
+app = create_app()
+app.run(debug=True)
+```
+
+### Development Commands:
+```bash
+# Set up development environment
+python scripts/setup_development.py
+
+# Run tests
+pytest tests/
+
+# Verify installation
+python scripts/verify_reorganization.py
+
+# Update context files
+python scripts/update_task_contexts_for_reorganization.py
+```
 
 ### 3.1 Main Implementation Class
 ```python

@@ -1,85 +1,162 @@
 ---
 task_id: task_002
 subtask_id: subtask_001
-title: Implement Database Schema and Models
-status: pending
-priority: medium
+title: Model Definition Phase
+status: done
+priority: high
 parent_task: task_002
 dependencies: []
 created: 2025-06-10
-updated: 2025-06-10
+updated: 2025-06-11
 ---
 
 # 🎯 Subtask Overview
-Design and implement the SQLite database schema for storing agent logs, task metadata, and draft versions.
+Define all data entities and their attributes in the database schema, focusing on the conceptual and logical design of individual data structures for the SwarmDirector system.
 
 ## 📋 Metadata
 - **ID**: task_002 / subtask_001
-- **Title**: Implement Database Schema and Models
-- **Status**: pending
-- **Priority**: medium
+- **Title**: Model Definition Phase
+- **Status**: done ✅
+- **Priority**: high
 - **Parent Task**: task_002
 - **Dependencies**: []
-- **Created / Updated**: 2025-06-10
+- **Created**: 2025-06-10
+- **Updated**: 2025-06-11
+- **Completion Date**: 2025-06-11
+
+## 🏗️ Repository Reorganization Context
+
+**Note**: This task context has been updated to reflect the comprehensive repository reorganization completed on 2025-06-11.
+
+### Key Changes:
+- **Source code** moved to `src/swarm_director/` package structure
+- **Tests** organized in dedicated `tests/` directory
+- **Documentation** structured in `docs/` with comprehensive guides
+- **Database files** organized in `database/` directory
+- **Utility scripts** moved to `scripts/` directory
+- **Examples** placed in `examples/` directory
+
+### New Project Benefits:
+- ✅ Professional Python package structure
+- ✅ Comprehensive documentation (15+ guides)
+- ✅ Improved developer experience with setup tools
+- ✅ Clear separation of concerns
+- ✅ Industry-standard organization
+
+### Updated References:
+All file paths and import statements in this context have been updated to reflect the new structure. See `docs/PROJECT_STRUCTURE.md` for complete details.
+
+---
 
 ## 🗒️ Scope, Assumptions & Constraints
 
 ### In Scope:
-- Specific deliverable 1 with detailed requirements
-- Specific deliverable 2 with technical specifications
-- Specific deliverable 3 with integration requirements
+- Task model with required fields (id, type, user_id, status, created_at, updated_at)
+- AgentLog model with required fields (id, task_id, agent_type, message, timestamp)
+- Draft model with required fields (id, task_id, version, content, created_at)
+- EmailMessage model with required fields (id, task_id, recipient, subject, body, status, sent_at)
+- Enum definitions for all status and type fields
+- Primary key definitions and data type specifications
+- Field constraints and validation rules
+- JSON serialization methods for all models
 
 ### Out of Scope:
-- Features not explicitly mentioned in requirements
-- Advanced features for future iterations
-- External system integrations beyond specified scope
+- Relationship configuration between models (covered in subtask 2.2)
+- Database utility functions (covered in subtask 2.3)
+- Performance optimization and indexing (covered in subtask 2.3)
+- Migration scripts and database management (covered in subtask 2.3)
 
 ### Assumptions:
-- Python 3.8+ environment available and configured
-- Required dependencies installed and accessible
-- Development environment properly set up
+- Flask application foundation exists (task_001 completed)
+- SQLAlchemy is installed and configured
+- Database models will inherit from a base model class
+- Enum types are supported by the database engine
+- JSON serialization is required for API responses
 
 ### Constraints:
-- Must maintain compatibility with existing system components
-- Must follow established coding standards and patterns
-- Must complete within specified performance requirements
+- Must follow SQLAlchemy ORM conventions
+- Must include all fields specified in task requirements
+- Must provide comprehensive field validation
+- Must support future relationship additions
+- Must maintain backward compatibility with existing code
 
 ---
 
 ## 🔍 1. Detailed Description
 
-Comprehensive description of the implementation requirements, including:
+This subtask focuses on defining the core data entities for the SwarmDirector system, creating comprehensive model definitions with proper field specifications, data types, and validation rules.
 
 ### Technical Requirements:
-- Specific technical specifications
-- Performance requirements and benchmarks
-- Integration requirements with existing systems
+- **Model Classes**: Four core SQLAlchemy models with complete field definitions
+- **Enum Definitions**: Comprehensive enums for status and type fields
+- **Data Types**: Appropriate SQLAlchemy column types for each field
+- **Constraints**: Primary keys, nullable constraints, and default values
+- **Validation**: Field-level validation and business rules
+- **Serialization**: JSON conversion methods for API compatibility
 
 ### Functional Requirements:
-- User-facing functionality specifications
-- Business logic requirements
-- Data processing requirements
+- **Task Management**: Model for tracking task assignments and progress
+- **Agent Logging**: Model for recording agent activities and communications
+- **Draft Versioning**: Model for managing document drafts and versions
+- **Email Tracking**: Model for monitoring email communications and delivery
+- **Status Tracking**: Comprehensive status management across all entities
+- **Metadata Management**: Timestamps and audit trail capabilities
 
 ### Implementation Components:
-1. **Component 1**: Detailed implementation description
-2. **Component 2**: Detailed implementation description
-3. **Component 3**: Detailed implementation description
+1. **Task Model**: Complete task entity with type categorization and status tracking
+2. **AgentLog Model**: Agent activity logging with levels and metadata
+3. **Draft Model**: Document version management with approval workflow
+4. **EmailMessage Model**: Email communication tracking with delivery status
+5. **Enum Definitions**: Status and type enumerations for all models
+6. **Base Model**: Common functionality and timestamp management
 
 ## 📁 2. Reference Artifacts & Files
 
 ### Primary Implementation Files:
 ```
-task_002/
-├── main_module.py          # Primary implementation
-├── config.py               # Configuration settings
-├── utils.py                # Utility functions
-└── tests/
-    ├── test_main.py        # Unit tests
-    └── test_integration.py # Integration tests
+SwarmDirector/
+├── src/                          # Source code
+│   └── swarm_director/          # Main application package
+│       ├── __init__.py          # Package initialization
+│       ├── app.py               # Flask application
+│       ├── config.py            # Configuration
+│       ├── agents/              # AI agent implementations
+│       ├── models/              # Database models
+│       ├── utils/               # Utility functions
+│       └── web/                 # Web interface
+│           ├── static/          # Static assets
+│           └── templates/       # Jinja2 templates
+├── tests/                       # Test suite
+├── scripts/                     # Utility scripts
+├── examples/                    # Demo applications
+├── docs/                        # Documentation
+│   ├── api/                     # API documentation
+│   ├── architecture/            # System architecture
+│   ├── deployment/              # Deployment guides
+│   └── development/             # Development guides
+├── database/                    # Database files and schemas
+│   ├── schemas/                 # Schema definitions
+│   ├── migrations/              # Alembic migrations
+│   └── data/                    # Database files
+├── reports/                     # Generated reports
+└── logs/                        # Application logs
 ```
 
 ### Configuration Files:
-- **config.py**: Application configuration
+- **src/swarm_director/config.py**: Application configuration classes
+- **.env**: Environment variables (create from template)
+- **requirements.txt**: Python dependencies
+- **run.py**: Application launcher script
+
+### Key Documentation:
+- **README.md**: Project overview and quick start
+- **docs/PROJECT_STRUCTURE.md**: Detailed project organization
+- **docs/api/README.md**: API documentation
+- **docs/architecture/overview.md**: System architecture
+- **docs/development/getting_started.md**: Developer guide
+- **QUICKSTART.md**: 1-minute setup guide
+### Configuration Files:
+- **src/swarm_director/src/swarm_director/config.py**: Application configuration
 - **.env**: Environment variables
 - **requirements.txt**: Python dependencies
 
@@ -90,6 +167,50 @@ task_002/
 ---
 
 ## 🔧 3. Interfaces & Code Snippets
+### Import Structure (New Package Organization):
+```python
+# Main application
+from src.swarm_director.app import create_app
+
+# Models
+from src.swarm_director.models.agent import Agent, AgentType
+from src.swarm_director.models.task import Task, TaskStatus
+from src.swarm_director.models.conversation import Conversation
+
+# Agents
+from src.swarm_director.agents.director import DirectorAgent
+from src.swarm_director.agents.base_agent import BaseAgent
+
+# Utilities
+from src.swarm_director.utils.database import get_database_info
+from src.swarm_director.utils.logging import log_agent_action
+```
+
+### Application Startup:
+```python
+# Using the new launcher
+python run.py
+
+# Or directly
+from src.swarm_director.app import create_app
+app = create_app()
+app.run(debug=True)
+```
+
+### Development Commands:
+```bash
+# Set up development environment
+python scripts/setup_development.py
+
+# Run tests
+pytest tests/
+
+# Verify installation
+python scripts/verify_reorganization.py
+
+# Update context files
+python scripts/update_task_contexts_for_reorganization.py
+```
 
 ### 3.1 Main Implementation Class
 ```python

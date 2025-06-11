@@ -1,48 +1,83 @@
 ---
 task_id: task_003
 subtask_id: subtask_003
-title: Develop DirectorAgent and Task Router
+title: Task Routing Logic Implementation
 status: pending
-priority: medium
+priority: high
 parent_task: task_003
-dependencies: []
+dependencies: [subtask_002]
 created: 2025-06-10
 updated: 2025-06-10
 ---
 
 # 🎯 Subtask Overview
-Implement the DirectorAgent with routing logic to dispatch tasks to appropriate department agents based on intent classification.
+Implement the task routing logic that maps classified intents to appropriate specialist agents, including routing decision trees and agent dispatch mechanisms.
 
 ## 📋 Metadata
 - **ID**: task_003 / subtask_003
-- **Title**: Develop DirectorAgent and Task Router
+- **Title**: Task Routing Logic Implementation
 - **Status**: pending
-- **Priority**: medium
+- **Priority**: high
 - **Parent Task**: task_003
-- **Dependencies**: []
-- **Created / Updated**: 2025-06-10
+- **Dependencies**: [subtask_002]
+- **Created**: 2025-06-10
+- **Updated**: 2025-06-10
+
+## 🏗️ Repository Reorganization Context
+
+**Note**: This task context has been updated to reflect the comprehensive repository reorganization completed on 2025-06-11.
+
+### Key Changes:
+- **Source code** moved to `src/swarm_director/` package structure
+- **Tests** organized in dedicated `tests/` directory
+- **Documentation** structured in `docs/` with comprehensive guides
+- **Database files** organized in `database/` directory
+- **Utility scripts** moved to `scripts/` directory
+- **Examples** placed in `examples/` directory
+
+### New Project Benefits:
+- ✅ Professional Python package structure
+- ✅ Comprehensive documentation (15+ guides)
+- ✅ Improved developer experience with setup tools
+- ✅ Clear separation of concerns
+- ✅ Industry-standard organization
+
+### Updated References:
+All file paths and import statements in this context have been updated to reflect the new structure. See `docs/PROJECT_STRUCTURE.md` for complete details.
+
+---
 
 ## 🗒️ Scope, Assumptions & Constraints
 
 ### In Scope:
-- Specific deliverable 1 with detailed requirements
-- Specific deliverable 2 with technical specifications
-- Specific deliverable 3 with integration requirements
+- Routing decision tree mapping intents to specialist agents
+- Agent dispatch mechanisms and communication protocols
+- Task status tracking and progress monitoring
+- Routing configuration and agent capability mapping
+- Load balancing and agent availability checking
+- Fallback routing for unrecognized intents
+- Routing analytics and performance monitoring
+- Agent communication interface definitions
 
 ### Out of Scope:
-- Features not explicitly mentioned in requirements
-- Advanced features for future iterations
-- External system integrations beyond specified scope
+- Specific agent implementations (covered in tasks 5-7)
+- Flask API endpoints (covered in subtask 3.4)
+- Advanced load balancing algorithms
+- Real-time agent health monitoring
 
 ### Assumptions:
-- Python 3.8+ environment available and configured
-- Required dependencies installed and accessible
-- Development environment properly set up
+- Intent classification system is functional (subtask 3.2 completed)
+- DirectorAgent core is implemented (subtask 3.1 completed)
+- Database models are available for task tracking
+- Specialist agents will be implemented in future tasks
+- Agent communication follows standard protocols
 
 ### Constraints:
-- Must maintain compatibility with existing system components
-- Must follow established coding standards and patterns
-- Must complete within specified performance requirements
+- Must support dynamic agent registration
+- Must handle agent unavailability gracefully
+- Must maintain routing decision audit trail
+- Must support both synchronous and asynchronous routing
+- Must integrate with existing database models
 
 ---
 
@@ -69,17 +104,49 @@ Comprehensive description of the implementation requirements, including:
 
 ### Primary Implementation Files:
 ```
-task_003/
-├── main_module.py          # Primary implementation
-├── config.py               # Configuration settings
-├── utils.py                # Utility functions
-└── tests/
-    ├── test_main.py        # Unit tests
-    └── test_integration.py # Integration tests
+SwarmDirector/
+├── src/                          # Source code
+│   └── swarm_director/          # Main application package
+│       ├── __init__.py          # Package initialization
+│       ├── app.py               # Flask application
+│       ├── config.py            # Configuration
+│       ├── agents/              # AI agent implementations
+│       ├── models/              # Database models
+│       ├── utils/               # Utility functions
+│       └── web/                 # Web interface
+│           ├── static/          # Static assets
+│           └── templates/       # Jinja2 templates
+├── tests/                       # Test suite
+├── scripts/                     # Utility scripts
+├── examples/                    # Demo applications
+├── docs/                        # Documentation
+│   ├── api/                     # API documentation
+│   ├── architecture/            # System architecture
+│   ├── deployment/              # Deployment guides
+│   └── development/             # Development guides
+├── database/                    # Database files and schemas
+│   ├── schemas/                 # Schema definitions
+│   ├── migrations/              # Alembic migrations
+│   └── data/                    # Database files
+├── reports/                     # Generated reports
+└── logs/                        # Application logs
 ```
 
 ### Configuration Files:
-- **config.py**: Application configuration
+- **src/swarm_director/config.py**: Application configuration classes
+- **.env**: Environment variables (create from template)
+- **requirements.txt**: Python dependencies
+- **run.py**: Application launcher script
+
+### Key Documentation:
+- **README.md**: Project overview and quick start
+- **docs/PROJECT_STRUCTURE.md**: Detailed project organization
+- **docs/api/README.md**: API documentation
+- **docs/architecture/overview.md**: System architecture
+- **docs/development/getting_started.md**: Developer guide
+- **QUICKSTART.md**: 1-minute setup guide
+### Configuration Files:
+- **src/swarm_director/src/swarm_director/config.py**: Application configuration
 - **.env**: Environment variables
 - **requirements.txt**: Python dependencies
 
@@ -90,6 +157,50 @@ task_003/
 ---
 
 ## 🔧 3. Interfaces & Code Snippets
+### Import Structure (New Package Organization):
+```python
+# Main application
+from src.swarm_director.app import create_app
+
+# Models
+from src.swarm_director.models.agent import Agent, AgentType
+from src.swarm_director.models.task import Task, TaskStatus
+from src.swarm_director.models.conversation import Conversation
+
+# Agents
+from src.swarm_director.agents.director import DirectorAgent
+from src.swarm_director.agents.base_agent import BaseAgent
+
+# Utilities
+from src.swarm_director.utils.database import get_database_info
+from src.swarm_director.utils.logging import log_agent_action
+```
+
+### Application Startup:
+```python
+# Using the new launcher
+python run.py
+
+# Or directly
+from src.swarm_director.app import create_app
+app = create_app()
+app.run(debug=True)
+```
+
+### Development Commands:
+```bash
+# Set up development environment
+python scripts/setup_development.py
+
+# Run tests
+pytest tests/
+
+# Verify installation
+python scripts/verify_reorganization.py
+
+# Update context files
+python scripts/update_task_contexts_for_reorganization.py
+```
 
 ### 3.1 Main Implementation Class
 ```python

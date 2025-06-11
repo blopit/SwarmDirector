@@ -5,13 +5,13 @@ title: Develop CommunicationsDept Agent
 status: pending
 priority: medium
 parent_task: null
-dependencies: []
+dependencies: [task_003, task_004]
 created: 2025-06-10
 updated: 2025-06-10
 ---
 
 # 🎯 Task Overview
-Implement the CommunicationsDept agent that extends AutoGen's ChatAgent to manage message drafting workflows.
+Implement the CommunicationsDept agent that extends AutoGen's ChatAgent to manage message drafting workflows, including draft creation, review orchestration, and feedback reconciliation.
 
 ## 📋 Metadata
 - **ID**: task_005
@@ -19,67 +19,147 @@ Implement the CommunicationsDept agent that extends AutoGen's ChatAgent to manag
 - **Status**: pending
 - **Priority**: medium
 - **Parent Task**: null
-- **Dependencies**: []
-- **Created / Updated**: 2025-06-10
+- **Dependencies**: [task_003, task_004]
+- **Created**: 2025-06-10
+- **Updated**: 2025-06-10
+
+## 🏗️ Repository Reorganization Context
+
+**Note**: This task context has been updated to reflect the comprehensive repository reorganization completed on 2025-06-11.
+
+### Key Changes:
+- **Source code** moved to `src/swarm_director/` package structure
+- **Tests** organized in dedicated `tests/` directory
+- **Documentation** structured in `docs/` with comprehensive guides
+- **Database files** organized in `database/` directory
+- **Utility scripts** moved to `scripts/` directory
+- **Examples** placed in `examples/` directory
+
+### New Project Benefits:
+- ✅ Professional Python package structure
+- ✅ Comprehensive documentation (15+ guides)
+- ✅ Improved developer experience with setup tools
+- ✅ Clear separation of concerns
+- ✅ Industry-standard organization
+
+### Updated References:
+All file paths and import statements in this context have been updated to reflect the new structure. See `docs/PROJECT_STRUCTURE.md` for complete details.
+
+---
 
 ## 🗒️ Scope, Assumptions & Constraints
 
 ### In Scope:
-- Specific deliverable 1 with detailed requirements
-- Specific deliverable 2 with technical specifications
-- Specific deliverable 3 with integration requirements
+- CommunicationsDept class implementation in agents/communications.py
+- AutoGen ChatAgent extension with custom functionality
+- Draft creation and management workflows
+- Multi-agent review orchestration using MultiAgentChain
+- Feedback reconciliation logic for conflicting suggestions
+- Final draft generation and approval processes
+- Comprehensive logging for all communication operations
+- Integration with Task and Draft database models
+- Performance optimization for concurrent requests
+- Error handling and recovery mechanisms
 
 ### Out of Scope:
-- Features not explicitly mentioned in requirements
-- Advanced features for future iterations
-- External system integrations beyond specified scope
+- Email sending functionality (covered in task_007)
+- Advanced natural language processing beyond AutoGen capabilities
+- Real-time collaboration features
+- External API integrations for third-party services
 
 ### Assumptions:
-- Python 3.8+ environment available and configured
-- Required dependencies installed and accessible
-- Development environment properly set up
+- DirectorAgent is functional (task_003 completed)
+- AutoGen integration framework is available (task_004 completed)
+- Database models for Task and Draft are operational
+- DraftReviewAgent will be implemented in task_006
+- MultiAgentChain utility is available from AutoGen integration
 
 ### Constraints:
-- Must maintain compatibility with existing system components
-- Must follow established coding standards and patterns
-- Must complete within specified performance requirements
+- Must extend AutoGen's ChatAgent class
+- Must integrate with existing database models
+- Must support parallel execution of review agents
+- Must handle conflicting feedback gracefully
+- Must maintain audit trail for all draft operations
+- Must support both synchronous and asynchronous operations
 
 ---
 
 ## 🔍 1. Detailed Description
 
-Comprehensive description of the implementation requirements, including:
+This task implements the CommunicationsDept agent, a sophisticated communication management system that orchestrates draft creation, review processes, and feedback reconciliation using AutoGen's multi-agent capabilities.
 
 ### Technical Requirements:
-- Specific technical specifications
-- Performance requirements and benchmarks
-- Integration requirements with existing systems
+- **AutoGen Integration**: Extend ChatAgent class with custom communication workflows
+- **Draft Management**: Complete draft lifecycle from creation to final approval
+- **Multi-Agent Orchestration**: Coordinate multiple review agents using MultiAgentChain
+- **Feedback Reconciliation**: Intelligent merging of potentially conflicting suggestions
+- **Database Integration**: Seamless integration with Task and Draft models
+- **Performance Optimization**: Efficient handling of concurrent draft requests
+- **Error Handling**: Comprehensive error management and recovery procedures
 
 ### Functional Requirements:
-- User-facing functionality specifications
-- Business logic requirements
-- Data processing requirements
+- **Draft Creation**: Generate initial drafts based on task requirements
+- **Review Coordination**: Spawn and manage multiple DraftReviewAgent instances
+- **Conflict Resolution**: Reconcile conflicting feedback from review agents
+- **Final Generation**: Produce final approved drafts
+- **Progress Tracking**: Monitor and log all stages of the drafting process
+- **Quality Assurance**: Ensure draft quality through multi-stage review
 
 ### Implementation Components:
-1. **Component 1**: Detailed implementation description
-2. **Component 2**: Detailed implementation description
-3. **Component 3**: Detailed implementation description
+1. **Core CommunicationsDept Agent**: AutoGen ChatAgent extension with communication workflows
+2. **Draft Creation Engine**: Initial draft generation based on task specifications
+3. **Review Orchestration System**: Multi-agent coordination and management
+4. **Feedback Reconciliation Module**: Conflict detection and resolution algorithms
+5. **Final Draft Generator**: Approved draft compilation and formatting
+6. **Logging and Monitoring**: Comprehensive activity tracking and performance monitoring
 
 ## 📁 2. Reference Artifacts & Files
 
 ### Primary Implementation Files:
 ```
-task_005/
-├── main_module.py          # Primary implementation
-├── config.py               # Configuration settings
-├── utils.py                # Utility functions
-└── tests/
-    ├── test_main.py        # Unit tests
-    └── test_integration.py # Integration tests
+SwarmDirector/
+├── src/                          # Source code
+│   └── swarm_director/          # Main application package
+│       ├── __init__.py          # Package initialization
+│       ├── app.py               # Flask application
+│       ├── config.py            # Configuration
+│       ├── agents/              # AI agent implementations
+│       ├── models/              # Database models
+│       ├── utils/               # Utility functions
+│       └── web/                 # Web interface
+│           ├── static/          # Static assets
+│           └── templates/       # Jinja2 templates
+├── tests/                       # Test suite
+├── scripts/                     # Utility scripts
+├── examples/                    # Demo applications
+├── docs/                        # Documentation
+│   ├── api/                     # API documentation
+│   ├── architecture/            # System architecture
+│   ├── deployment/              # Deployment guides
+│   └── development/             # Development guides
+├── database/                    # Database files and schemas
+│   ├── schemas/                 # Schema definitions
+│   ├── migrations/              # Alembic migrations
+│   └── data/                    # Database files
+├── reports/                     # Generated reports
+└── logs/                        # Application logs
 ```
 
 ### Configuration Files:
-- **config.py**: Application configuration
+- **src/swarm_director/config.py**: Application configuration classes
+- **.env**: Environment variables (create from template)
+- **requirements.txt**: Python dependencies
+- **run.py**: Application launcher script
+
+### Key Documentation:
+- **README.md**: Project overview and quick start
+- **docs/PROJECT_STRUCTURE.md**: Detailed project organization
+- **docs/api/README.md**: API documentation
+- **docs/architecture/overview.md**: System architecture
+- **docs/development/getting_started.md**: Developer guide
+- **QUICKSTART.md**: 1-minute setup guide
+### Configuration Files:
+- **src/swarm_director/src/swarm_director/config.py**: Application configuration
 - **.env**: Environment variables
 - **requirements.txt**: Python dependencies
 
@@ -90,6 +170,50 @@ task_005/
 ---
 
 ## 🔧 3. Interfaces & Code Snippets
+### Import Structure (New Package Organization):
+```python
+# Main application
+from src.swarm_director.app import create_app
+
+# Models
+from src.swarm_director.models.agent import Agent, AgentType
+from src.swarm_director.models.task import Task, TaskStatus
+from src.swarm_director.models.conversation import Conversation
+
+# Agents
+from src.swarm_director.agents.director import DirectorAgent
+from src.swarm_director.agents.base_agent import BaseAgent
+
+# Utilities
+from src.swarm_director.utils.database import get_database_info
+from src.swarm_director.utils.logging import log_agent_action
+```
+
+### Application Startup:
+```python
+# Using the new launcher
+python run.py
+
+# Or directly
+from src.swarm_director.app import create_app
+app = create_app()
+app.run(debug=True)
+```
+
+### Development Commands:
+```bash
+# Set up development environment
+python scripts/setup_development.py
+
+# Run tests
+pytest tests/
+
+# Verify installation
+python scripts/verify_reorganization.py
+
+# Update context files
+python scripts/update_task_contexts_for_reorganization.py
+```
 
 ### 3.1 Main Implementation Class
 ```python
