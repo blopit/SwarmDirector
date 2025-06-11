@@ -355,12 +355,173 @@ def register_routes(app):
             conversations = Conversation.query.all()
             return jsonify({
                 'status': 'success',
-                'conversations': [conv.to_dict() for conv in conversations],
-                'count': len(conversations)
+                'conversations': [conv.to_dict() for conv in conversations]
             })
         except Exception as e:
-            app.logger.error(f'Error fetching conversations: {str(e)}')
-            return jsonify({'status': 'error', 'error': str(e)}), 500
+            app.logger.error(f'Error fetching conversations: {e}')
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
+    
+    # ===== ANALYTICS ROUTES =====
+    
+    @app.route('/api/analytics/conversations', methods=['GET'])
+    def get_conversation_analytics():
+        """Get analytics for all conversations"""
+        try:
+            from .models.conversation import Conversation, ConversationAnalytics
+            from .utils.conversation_analytics import create_analytics_engine
+            
+            # Get query parameters
+            status_filter = request.args.get('status')
+            pattern_filter = request.args.get('pattern')
+            limit = request.args.get('limit', 50, type=int)
+            
+            # Build query
+            query = Conversation.query
+            if status_filter:
+                query = query.filter_by(status=status_filter)
+            if pattern_filter:
+                query = query.filter_by(orchestration_pattern=pattern_filter)
+            
+            conversations = query.order_by(Conversation.created_at.desc()).limit(limit).all()
+            
+            # Get analytics for each conversation
+            analytics_engine = create_analytics_engine()
+            results = []
+            
+            for conv in conversations:
+                analytics = ConversationAnalytics.query.filter_by(conversation_id=conv.id).first()
+                if not analytics:
+                    # Generate analytics if not exists
+                    analytics = analytics_engine.analyze_conversation(conv.id)
+                
+                conv_data = conv.to_dict()
+                conv_data['analytics'] = analytics.to_dict() if analytics else None
+                results.append(conv_data)
+            
+            return jsonify({
+                'status': 'success',
+                'conversations': results,
+                'total': len(results)
+            })
+        except Exception as e:
+            app.logger.error(f'Error fetching conversation analytics: {e}')
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/analytics/conversations/<int:conversation_id>', methods=['GET'])
+    def get_conversation_analytics_detail(conversation_id):
+        """Get detailed analytics for a specific conversation"""
+        try:
+            from .models.conversation import Conversation
+            from .utils.conversation_analytics import create_analytics_engine
+            
+            conversation = Conversation.query.get_or_404(conversation_id)
+            analytics_engine = create_analytics_engine()
+            
+            # Get comprehensive insights
+            insights = analytics_engine.get_conversation_insights(conversation_id)
+            
+            return jsonify({
+                'status': 'success',
+                'conversation': conversation.to_dict(),
+                'insights': insights
+            })
+        except Exception as e:
+            app.logger.error(f'Error fetching conversation analytics detail: {e}')
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/analytics/conversations/<int:conversation_id>/regenerate', methods=['POST'])
+    def regenerate_conversation_analytics(conversation_id):
+        """Regenerate analytics for a specific conversation"""
+        try:
+            from .models.conversation import Conversation
+            from .utils.conversation_analytics import create_analytics_engine
+            
+            conversation = Conversation.query.get_or_404(conversation_id)
+            analytics_engine = create_analytics_engine()
+            
+            # Force regeneration of analytics
+            analytics = analytics_engine.analyze_conversation(conversation_id)
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Analytics regenerated successfully',
+                'analytics': analytics.to_dict() if analytics else None
+            })
+        except Exception as e:
+            app.logger.error(f'Error regenerating analytics: {e}')
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/analytics/summary', methods=['GET'])
+    def get_analytics_summary():
+        """Get overall analytics summary across all conversations"""
+        try:
+            from .models.conversation import Conversation, ConversationAnalytics, OrchestrationPattern
+            from sqlalchemy import func
+            
+            # Basic conversation stats
+            total_conversations = Conversation.query.count()
+            active_conversations = Conversation.query.filter_by(status='active').count()
+            completed_conversations = Conversation.query.filter_by(status='completed').count()
+            
+            # Analytics aggregations
+            analytics_stats = db.session.query(
+                func.avg(ConversationAnalytics.total_duration).label('avg_duration'),
+                func.avg(ConversationAnalytics.goal_achievement).label('avg_goal_achievement'),
+                func.avg(ConversationAnalytics.agent_collaboration_score).label('avg_collaboration'),
+                func.avg(ConversationAnalytics.overall_sentiment).label('avg_sentiment'),
+                func.sum(ConversationAnalytics.total_participants).label('total_participants'),
+                func.sum(ConversationAnalytics.error_count).label('total_errors')
+            ).first()
+            
+            # Pattern distribution
+            pattern_distribution = db.session.query(
+                Conversation.orchestration_pattern,
+                func.count(Conversation.id).label('count')
+            ).group_by(Conversation.orchestration_pattern).all()
+            
+            # Recent activity (last 7 days)
+            from datetime import datetime, timedelta
+            week_ago = datetime.utcnow() - timedelta(days=7)
+            recent_conversations = Conversation.query.filter(
+                Conversation.created_at >= week_ago
+            ).count()
+            
+            return jsonify({
+                'status': 'success',
+                'summary': {
+                    'total_conversations': total_conversations,
+                    'active_conversations': active_conversations,
+                    'completed_conversations': completed_conversations,
+                    'recent_conversations': recent_conversations,
+                    'avg_duration_seconds': float(analytics_stats.avg_duration or 0),
+                    'avg_goal_achievement': float(analytics_stats.avg_goal_achievement or 0),
+                    'avg_collaboration_score': float(analytics_stats.avg_collaboration or 0),
+                    'avg_sentiment': float(analytics_stats.avg_sentiment or 0),
+                    'total_participants': int(analytics_stats.total_participants or 0),
+                    'total_errors': int(analytics_stats.total_errors or 0),
+                    'pattern_distribution': {
+                        pattern[0]: pattern[1] for pattern in pattern_distribution if pattern[0]
+                    }
+                }
+            })
+        except Exception as e:
+            app.logger.error(f'Error fetching analytics summary: {e}')
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
 
     # ============================================================================
     # WEB UI DASHBOARD ROUTES
@@ -386,6 +547,7 @@ def register_routes(app):
             </a>
             <div class="navbar-nav">
                 <a class="nav-link" href="/dashboard/agents">Agents</a>
+                <a class="nav-link" href="/dashboard/analytics">Analytics</a>
                 <a class="nav-link" href="/dashboard/tasks">Tasks</a>
             </div>
         </div>
@@ -697,6 +859,359 @@ def register_routes(app):
         }
         
         document.addEventListener('DOMContentLoaded', loadAgents);
+    </script>
+</body>
+</html>'''
+    
+    @app.route('/dashboard/analytics')
+    def analytics_page():
+        """Analytics dashboard page"""
+        return '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - SwarmDirector</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/dashboard">
+                <i class="fas fa-sitemap"></i> SwarmDirector
+            </a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="/dashboard/agents">Agents</a>
+                <a class="nav-link active" href="/dashboard/analytics">Analytics</a>
+                <a class="nav-link" href="/dashboard/tasks">Tasks</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1><i class="fas fa-chart-line"></i> Conversation Analytics</h1>
+            </div>
+        </div>
+        
+        <!-- Summary Cards -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h5><i class="fas fa-comments"></i> Total Conversations</h5>
+                        <h2 id="totalConversations">-</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h5><i class="fas fa-check-circle"></i> Completed</h5>
+                        <h2 id="completedConversations">-</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <h5><i class="fas fa-clock"></i> Active</h5>
+                        <h2 id="activeConversations">-</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h5><i class="fas fa-calendar-week"></i> This Week</h5>
+                        <h2 id="recentConversations">-</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Metrics Row -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-pie"></i> Orchestration Patterns</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="patternsChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-bar"></i> Performance Metrics</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h6>Avg Duration</h6>
+                                    <span id="avgDuration" class="h4 text-primary">-</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h6>Goal Achievement</h6>
+                                    <span id="avgGoalAchievement" class="h4 text-success">-</span>
+                                </div>
+                            </div>
+                            <div class="col-6 mt-3">
+                                <div class="text-center">
+                                    <h6>Collaboration Score</h6>
+                                    <span id="avgCollaboration" class="h4 text-info">-</span>
+                                </div>
+                            </div>
+                            <div class="col-6 mt-3">
+                                <div class="text-center">
+                                    <h6>Sentiment</h6>
+                                    <span id="avgSentiment" class="h4 text-warning">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Conversations List -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-list"></i> Recent Conversations</h5>
+                        <div>
+                            <select id="statusFilter" class="form-select form-select-sm" onchange="loadConversations()">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="completed">Completed</option>
+                                <option value="paused">Paused</option>
+                                <option value="error">Error</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Title</th>
+                                        <th>Status</th>
+                                        <th>Pattern</th>
+                                        <th>Duration</th>
+                                        <th>Messages</th>
+                                        <th>Goal Achievement</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="conversationsTableBody">
+                                    <tr>
+                                        <td colspan="8" class="text-center">Loading conversations...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let patternsChart = null;
+        
+        async function loadSummary() {
+            try {
+                const response = await fetch('/api/analytics/summary');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const summary = data.summary;
+                    
+                    // Update summary cards
+                    document.getElementById('totalConversations').textContent = summary.total_conversations;
+                    document.getElementById('completedConversations').textContent = summary.completed_conversations;
+                    document.getElementById('activeConversations').textContent = summary.active_conversations;
+                    document.getElementById('recentConversations').textContent = summary.recent_conversations;
+                    
+                    // Update metrics
+                    document.getElementById('avgDuration').textContent = 
+                        summary.avg_duration_seconds ? Math.round(summary.avg_duration_seconds) + 's' : 'N/A';
+                    document.getElementById('avgGoalAchievement').textContent = 
+                        summary.avg_goal_achievement ? Math.round(summary.avg_goal_achievement) + '%' : 'N/A';
+                    document.getElementById('avgCollaboration').textContent = 
+                        summary.avg_collaboration_score ? Math.round(summary.avg_collaboration_score) + '%' : 'N/A';
+                    document.getElementById('avgSentiment').textContent = 
+                        summary.avg_sentiment ? summary.avg_sentiment.toFixed(2) : 'N/A';
+                    
+                    // Update patterns chart
+                    updatePatternsChart(summary.pattern_distribution);
+                }
+            } catch (error) {
+                console.error('Error loading summary:', error);
+            }
+        }
+        
+        function updatePatternsChart(patternData) {
+            const ctx = document.getElementById('patternsChart').getContext('2d');
+            
+            if (patternsChart) {
+                patternsChart.destroy();
+            }
+            
+            const labels = Object.keys(patternData);
+            const values = Object.values(patternData);
+            
+            patternsChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels.map(label => label.replace('_', ' ').toUpperCase()),
+                    datasets: [{
+                        data: values,
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+                            '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+        
+        async function loadConversations() {
+            try {
+                const statusFilter = document.getElementById('statusFilter').value;
+                const params = new URLSearchParams();
+                if (statusFilter) params.append('status', statusFilter);
+                
+                const response = await fetch(`/api/analytics/conversations?${params}`);
+                const data = await response.json();
+                
+                const tbody = document.getElementById('conversationsTableBody');
+                
+                if (data.conversations && data.conversations.length > 0) {
+                    tbody.innerHTML = data.conversations.map(conv => {
+                        const analytics = conv.analytics;
+                        return `
+                            <tr>
+                                <td>${conv.id}</td>
+                                <td>${conv.title || 'Untitled'}</td>
+                                <td><span class="badge bg-${getStatusColor(conv.status)}">${conv.status}</span></td>
+                                <td>${conv.orchestration_pattern || 'N/A'}</td>
+                                <td>${analytics && analytics.total_duration ? Math.round(analytics.total_duration) + 's' : 'N/A'}</td>
+                                <td>${conv.total_messages || 0}</td>
+                                <td>${analytics && analytics.goal_achievement ? Math.round(analytics.goal_achievement) + '%' : 'N/A'}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewDetails(${conv.id})">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning" onclick="regenerateAnalytics(${conv.id})">
+                                        <i class="fas fa-refresh"></i> Refresh
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center">No conversations found</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading conversations:', error);
+                document.getElementById('conversationsTableBody').innerHTML = 
+                    '<tr><td colspan="8" class="text-center text-danger">Error loading conversations</td></tr>';
+            }
+        }
+        
+        function getStatusColor(status) {
+            switch(status) {
+                case 'active': return 'warning';
+                case 'completed': return 'success';
+                case 'paused': return 'secondary';
+                case 'error': return 'danger';
+                default: return 'light';
+            }
+        }
+        
+        async function viewDetails(conversationId) {
+            try {
+                const response = await fetch(`/api/analytics/conversations/${conversationId}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const insights = data.insights;
+                    let detailsHtml = '<div class="row">';
+                    
+                    // Display insights
+                    if (insights.summary) {
+                        detailsHtml += '<div class="col-12"><h6>Summary:</h6>';
+                        Object.entries(insights.summary).forEach(([key, value]) => {
+                            detailsHtml += `<p><strong>${key.replace('_', ' ')}:</strong> ${value}</p>`;
+                        });
+                        detailsHtml += '</div>';
+                    }
+                    
+                    if (insights.recommendations && insights.recommendations.length > 0) {
+                        detailsHtml += '<div class="col-12 mt-3"><h6>Recommendations:</h6><ul>';
+                        insights.recommendations.forEach(rec => {
+                            detailsHtml += `<li>${rec}</li>`;
+                        });
+                        detailsHtml += '</ul></div>';
+                    }
+                    
+                    detailsHtml += '</div>';
+                    
+                    // Simple modal using alert for now (could be enhanced with Bootstrap modal)
+                    alert('Conversation Details:\\n\\n' + JSON.stringify(insights, null, 2));
+                }
+            } catch (error) {
+                console.error('Error loading conversation details:', error);
+                alert('Error loading conversation details');
+            }
+        }
+        
+        async function regenerateAnalytics(conversationId) {
+            if (!confirm('Regenerate analytics for this conversation?')) return;
+            
+            try {
+                const response = await fetch(`/api/analytics/conversations/${conversationId}/regenerate`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    alert('Analytics regenerated successfully');
+                    loadConversations();
+                } else {
+                    alert('Error regenerating analytics: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error regenerating analytics:', error);
+                alert('Error regenerating analytics');
+            }
+        }
+        
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSummary();
+            loadConversations();
+        });
     </script>
 </body>
 </html>'''

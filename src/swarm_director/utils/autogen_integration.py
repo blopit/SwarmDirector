@@ -13,6 +13,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from flask import current_app
 from enum import Enum
+from collections import defaultdict
+
+# Import models (with type checking to avoid circular imports)
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..models.conversation import Conversation, Message, ConversationAnalytics
 
 
 @dataclass
@@ -614,136 +620,192 @@ class ConversationDirector:
 
 
 class AdvancedMultiAgentChain(MultiAgentChain):
-    """Enhanced multi-agent chain with advanced orchestration capabilities"""
+    """Enhanced multi-agent chain with orchestration and analytics tracking"""
     
     def __init__(self, name: str = "AdvancedMultiAgentChain", 
                  conversation_config: Optional[ConversationConfig] = None):
         super().__init__(name)
         self.conversation_config = conversation_config or ConversationConfig()
-        self.conversation_director = ConversationDirector(f"{name}_Director")
-        self.orchestration_metrics: Dict[str, Any] = {}
-        self.session_logs: List[Dict] = []
-
+        self.session_manager: Optional[ConversationSessionManager] = None
+        self.orchestration_analytics = {
+            'pattern_usage': defaultdict(int),
+            'session_start': None,
+            'conversation_count': 0,
+            'total_duration': 0
+        }
+    
     def create_enhanced_group_chat(self, conversation_config: Optional[ConversationConfig] = None) -> autogen.GroupChat:
-        """Create an enhanced group chat with advanced orchestration"""
+        """Create an enhanced group chat with custom orchestration"""
         config = conversation_config or self.conversation_config
         
-        try:
-            if not self.agents:
-                raise ValueError("No agents added to the chain")
-
-            autogen_agents = [agent.agent for agent in self.agents]
-            
-            # Create custom speaker selection function
-            speaker_selection_func = self.conversation_director.create_custom_speaker_selection(
-                config.pattern
-            )
-            
-            # Create enhanced termination condition
-            termination_func = self.conversation_director.create_termination_condition(config)
-            
-            self.group_chat = autogen.GroupChat(
-                agents=autogen_agents,
-                messages=[],
-                max_round=config.max_round,
-                speaker_selection_method=speaker_selection_func,
-                allow_repeat_speaker=config.allow_repeat_speaker
-            )
-
-            # Create manager with enhanced config
-            manager_config = self.agents[0].config.to_llm_config() if self.agents else {}
-            self.manager = autogen.GroupChatManager(
-                groupchat=self.group_chat,
-                llm_config=manager_config,
-                is_termination_msg=termination_func
-            )
-
-            self.logger.info(f"Created enhanced group chat with {len(autogen_agents)} agents using {config.pattern.value} pattern")
-            return self.group_chat
-
-        except Exception as e:
-            self.logger.error(f"Error creating enhanced group chat: {str(e)}")
-            raise
-
+        if not self.agents:
+            raise ValueError("No agents available for group chat")
+        
+        # Create conversation director for speaker selection
+        director = ConversationDirector()
+        speaker_selection_func = director.create_custom_speaker_selection(config.pattern)
+        termination_func = director.create_termination_condition(config)
+        
+        # Get AutoGen agents
+        autogen_agents = [agent.agent for agent in self.agents]
+        
+        group_chat = autogen.GroupChat(
+            agents=autogen_agents,
+            messages=[],
+            max_round=config.max_round,
+            speaker_selection_method=speaker_selection_func,
+            allow_repeat_speaker=config.allow_repeat_speaker
+        )
+        
+        # Create group chat manager with enhanced termination
+        manager = autogen.GroupChatManager(
+            groupchat=group_chat,
+            llm_config=self.agents[0].config.to_llm_config(),
+            is_termination_msg=termination_func
+        )
+        
+        return group_chat, manager
+    
     def execute_orchestrated_conversation(self, message: str, pattern: Optional[OrchestrationPattern] = None) -> Dict:
-        """Execute a conversation with specific orchestration pattern"""
+        """Execute a conversation with orchestration and full tracking"""
         start_time = datetime.now()
-        pattern = pattern or self.conversation_config.pattern
+        self.orchestration_analytics['session_start'] = start_time
+        
+        # Set pattern for this conversation
+        if pattern:
+            self.conversation_config.pattern = pattern
+        
+        # Initialize session manager
+        self.session_manager = ConversationSessionManager()
+        conversation = self.session_manager.start_conversation(
+            title=f"{self.name} Orchestrated Chat",
+            description=f"Multi-agent conversation with {self.conversation_config.pattern.value} orchestration",
+            conversation_type="autogen_orchestrated",
+            orchestration_pattern=self.conversation_config.pattern
+        )
         
         try:
-            # Update pattern if different from current
-            if pattern != self.conversation_config.pattern:
-                self.conversation_config.pattern = pattern
-                self.create_enhanced_group_chat()
+            # Create enhanced group chat
+            group_chat, manager = self.create_enhanced_group_chat()
             
-            # Ensure group chat is created
-            if not self.manager or not self.group_chat:
-                self.create_enhanced_group_chat()
-
-            # Execute conversation
-            initiator = self.agents[0].agent
-            chat_result = initiator.initiate_chat(
-                self.manager,
-                message=message,
-                max_turns=self.conversation_config.max_round
+            # Track initial message
+            initial_message = self.session_manager.track_message(
+                content=message,
+                sender_name="User",
+                message_type="user_message"
             )
-
-            # Calculate metrics
+            
+            # Execute conversation
+            response_start = datetime.now()
+            
+            # Get the first agent to start the conversation
+            if self.agents:
+                initiator = self.agents[0].agent
+                chat_result = initiator.initiate_chat(
+                    manager,
+                    message=message,
+                    max_turns=self.conversation_config.max_round
+                )
+                
+                # Track all messages from the chat
+                if hasattr(chat_result, 'chat_history') and chat_result.chat_history:
+                    self._track_chat_messages(chat_result.chat_history, response_start)
+                    self.session_manager.update_autogen_history(chat_result.chat_history)
+                elif hasattr(group_chat, 'messages') and group_chat.messages:
+                    self._track_chat_messages(group_chat.messages, response_start)
+                    self.session_manager.update_autogen_history(group_chat.messages)
+            
+            # Complete conversation and generate analytics
+            analytics = self.session_manager.complete_conversation()
+            
+            # Update orchestration analytics
+            self.orchestration_analytics['pattern_usage'][self.conversation_config.pattern.value] += 1
+            self.orchestration_analytics['conversation_count'] += 1
+            
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
+            self.orchestration_analytics['total_duration'] += duration
             
-            session_log = {
-                "session_id": f"session_{start_time.timestamp()}",
-                "start_time": start_time.isoformat(),
-                "end_time": end_time.isoformat(),
-                "duration_seconds": duration,
-                "pattern": pattern.value,
-                "initial_message": message,
-                "agent_count": len(self.agents),
-                "message_count": len(self.group_chat.messages) if self.group_chat else 0,
-                "result": chat_result
+            return {
+                "status": "completed",
+                "conversation_id": conversation.id,
+                "session_id": self.session_manager.session_id,
+                "pattern_used": self.conversation_config.pattern.value,
+                "duration": duration,
+                "message_count": len(group_chat.messages) if hasattr(group_chat, 'messages') else 0,
+                "analytics": analytics.to_dict() if analytics else None,
+                "orchestration_analytics": self.get_orchestration_analytics()
             }
             
-            self.session_logs.append(session_log)
-            
-            # Log for all agents
-            for agent in self.agents:
-                agent.log_message({
-                    "type": "orchestrated_group_chat",
-                    "pattern": pattern.value,
-                    "message": message,
-                    "session_id": session_log["session_id"],
-                    "duration": duration
-                })
-
-            return session_log
-
         except Exception as e:
-            self.logger.error(f"Error in orchestrated conversation: {str(e)}")
-            raise
-
+            # Track error
+            if self.session_manager:
+                self.session_manager.track_message(
+                    content=f"Error occurred: {str(e)}",
+                    sender_name="System",
+                    message_type="error_message"
+                )
+                self.session_manager.complete_conversation()
+            
+            return {
+                "status": "error",
+                "error": str(e),
+                "conversation_id": conversation.id if conversation else None,
+                "session_id": self.session_manager.session_id if self.session_manager else None
+            }
+    
+    def _track_chat_messages(self, chat_messages: List[Dict], start_time: datetime):
+        """Track messages from AutoGen chat history"""
+        if not self.session_manager:
+            return
+        
+        for i, msg in enumerate(chat_messages):
+            if isinstance(msg, dict):
+                content = msg.get('content', '')
+                sender = msg.get('name', msg.get('role', 'Unknown'))
+                
+                # Estimate response time (simple approximation)
+                response_time = (datetime.now() - start_time).total_seconds() / len(chat_messages) * (i + 1)
+                
+                # Determine message type
+                if sender.lower() in ['user', 'human']:
+                    msg_type = "user_message"
+                elif 'error' in content.lower() or 'exception' in content.lower():
+                    msg_type = "error_message"
+                else:
+                    msg_type = "agent_response"
+                
+                self.session_manager.track_message(
+                    content=content,
+                    sender_name=sender,
+                    message_type=msg_type,
+                    response_time=response_time,
+                    metadata=msg
+                )
+    
     def get_orchestration_analytics(self) -> Dict:
-        """Get detailed analytics on orchestration performance"""
-        if not self.session_logs:
-            return {"message": "No orchestration sessions recorded"}
+        """Get comprehensive orchestration analytics"""
+        base_analytics = super().get_chain_stats()
         
-        total_sessions = len(self.session_logs)
-        total_duration = sum(log["duration_seconds"] for log in self.session_logs)
-        avg_duration = total_duration / total_sessions
-        
-        pattern_usage = {}
-        for log in self.session_logs:
-            pattern = log["pattern"]
-            pattern_usage[pattern] = pattern_usage.get(pattern, 0) + 1
-        
-        return {
-            "total_sessions": total_sessions,
-            "total_duration_seconds": total_duration,
-            "average_duration_seconds": avg_duration,
-            "pattern_usage": pattern_usage,
-            "agent_count": len(self.agents),
-            "recent_sessions": self.session_logs[-5:] if len(self.session_logs) > 5 else self.session_logs
+        enhanced_analytics = {
+            **base_analytics,
+            "orchestration_metrics": {
+                "pattern_usage": dict(self.orchestration_analytics['pattern_usage']),
+                "conversation_count": self.orchestration_analytics['conversation_count'],
+                "total_duration": self.orchestration_analytics['total_duration'],
+                "avg_conversation_duration": (
+                    self.orchestration_analytics['total_duration'] / 
+                    max(1, self.orchestration_analytics['conversation_count'])
+                ),
+                "current_pattern": self.conversation_config.pattern.value,
+                "session_info": {
+                    "current_session": self.session_manager.session_id if self.session_manager else None,
+                    "current_conversation": self.session_manager.conversation.id if self.session_manager and self.session_manager.conversation else None
+                }
+            }
         }
+        
+        return enhanced_analytics
 
 
 class OrchestrationWorkflow:
@@ -813,3 +875,102 @@ class OrchestrationWorkflow:
         chain.conversation_config.max_round = 45
         
         return chain 
+
+class ConversationSessionManager:
+    """Manages AutoGen conversation sessions with database integration"""
+    
+    def __init__(self, session_id: Optional[str] = None):
+        self.session_id = session_id or f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        self.conversation: Optional['Conversation'] = None
+        self.analytics_engine = None
+        self.logger = logging.getLogger(f"autogen.session.{self.session_id}")
+    
+    def start_conversation(self, title: str = "AutoGen Conversation", 
+                         description: str = "", conversation_type: str = "autogen",
+                         orchestration_pattern: Optional[OrchestrationPattern] = None) -> 'Conversation':
+        """Start a new tracked conversation"""
+        from ..models.conversation import Conversation
+        from datetime import datetime
+        
+        self.conversation = Conversation(
+            title=title,
+            description=description,
+            session_id=self.session_id,
+            conversation_type=conversation_type,
+            start_time=datetime.utcnow(),
+            orchestration_pattern=orchestration_pattern
+        )
+        self.conversation.save()
+        self.logger.info(f"Started conversation {self.conversation.id} with session {self.session_id}")
+        return self.conversation
+    
+    def track_message(self, content: str, sender_name: str, message_type: str = "agent_response",
+                     sender_agent_id: Optional[int] = None, response_time: Optional[float] = None,
+                     tokens_used: Optional[int] = None, metadata: Optional[Dict] = None) -> 'Message':
+        """Track a message in the current conversation"""
+        if not self.conversation:
+            raise ValueError("No active conversation. Call start_conversation() first.")
+        
+        from ..models.conversation import Message, MessageType
+        
+        # Map string message type to enum
+        try:
+            msg_type = MessageType(message_type)
+        except ValueError:
+            msg_type = MessageType.AGENT_RESPONSE
+        
+        message = Message(
+            conversation_id=self.conversation.id,
+            content=content,
+            message_type=msg_type,
+            sender_agent_id=sender_agent_id,
+            agent_name=sender_name,
+            response_time=response_time,
+            tokens_used=tokens_used,
+            message_metadata=metadata,
+            message_length=len(content)
+        )
+        message.save()
+        
+        # Update conversation totals
+        self.conversation.total_messages = len(self.conversation.messages)
+        if tokens_used:
+            self.conversation.total_tokens = (self.conversation.total_tokens or 0) + tokens_used
+        self.conversation.save()
+        
+        return message
+    
+    def update_autogen_history(self, autogen_chat_history: List[Dict]):
+        """Update the conversation with AutoGen chat history"""
+        if not self.conversation:
+            return
+        
+        self.conversation.autogen_chat_history = autogen_chat_history
+        self.conversation.save()
+    
+    def complete_conversation(self) -> 'ConversationAnalytics':
+        """Complete the conversation and generate analytics"""
+        if not self.conversation:
+            raise ValueError("No active conversation to complete.")
+        
+        self.conversation.complete_conversation()
+        
+        # Generate analytics
+        if not self.analytics_engine:
+            from .conversation_analytics import create_analytics_engine
+            self.analytics_engine = create_analytics_engine()
+        
+        analytics = self.analytics_engine.analyze_conversation(self.conversation.id)
+        self.logger.info(f"Completed conversation {self.conversation.id} with analytics")
+        return analytics
+    
+    def get_conversation_summary(self) -> Dict[str, Any]:
+        """Get a summary of the current conversation"""
+        if not self.conversation:
+            return {"error": "No active conversation"}
+        
+        if not self.analytics_engine:
+            from .conversation_analytics import create_analytics_engine
+            self.analytics_engine = create_analytics_engine()
+        
+        return self.analytics_engine.get_conversation_insights(self.conversation.id) 

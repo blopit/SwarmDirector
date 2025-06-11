@@ -70,6 +70,16 @@ CREATE TABLE conversations (
 	conversation_type VARCHAR(50),    -- Type of conversation (task, query, etc.)
 	autogen_chat_history JSON,        -- Microsoft AutoGen chat history
 	group_chat_config JSON,           -- Configuration for group chats
+	orchestration_pattern VARCHAR(20), -- Orchestration pattern used ('round_robin', 'expertise_based', etc.)
+	start_time DATETIME,              -- Conversation start timestamp
+	end_time DATETIME,                -- Conversation end timestamp
+	total_duration FLOAT,             -- Duration in seconds
+	total_tokens INTEGER DEFAULT 0,   -- Total tokens used in conversation
+	total_messages INTEGER DEFAULT 0, -- Total message count
+	participant_count INTEGER DEFAULT 0, -- Number of participating agents
+	avg_response_time FLOAT,          -- Average response time in seconds
+	effectiveness_score FLOAT,        -- Effectiveness score (0-100)
+	engagement_score FLOAT,           -- Engagement score (0-100)
 	id INTEGER NOT NULL, 
 	created_at DATETIME NOT NULL, 
 	updated_at DATETIME NOT NULL, 
@@ -88,12 +98,53 @@ CREATE TABLE messages (
 	message_metadata JSON,            -- Additional message metadata
 	tokens_used INTEGER,              -- Token count for LLM tracking
 	response_time FLOAT,              -- Response time in seconds
+	agent_name VARCHAR(100),          -- Agent name for tracking
+	message_length INTEGER,           -- Character count of message
+	sentiment_score FLOAT,            -- Sentiment analysis score (-1 to 1)
 	id INTEGER NOT NULL, 
 	created_at DATETIME NOT NULL, 
 	updated_at DATETIME NOT NULL, 
 	PRIMARY KEY (id), 
 	FOREIGN KEY(conversation_id) REFERENCES conversations (id), 
 	FOREIGN KEY(sender_agent_id) REFERENCES agents (id)
+);
+
+-- CONVERSATION_ANALYTICS TABLE
+-- Stores detailed analytics for conversation performance and insights
+CREATE TABLE conversation_analytics (
+	conversation_id INTEGER NOT NULL, -- Foreign key to conversations table
+	-- Timing metrics
+	total_duration FLOAT,             -- Total conversation duration in seconds
+	avg_message_interval FLOAT,       -- Average time between messages
+	fastest_response FLOAT,           -- Fastest agent response time
+	slowest_response FLOAT,           -- Slowest agent response time
+	-- Content metrics
+	total_characters INTEGER,         -- Total character count
+	avg_message_length FLOAT,         -- Average message length
+	unique_words INTEGER,             -- Unique word count
+	vocabulary_richness FLOAT,        -- Unique words / total words ratio
+	-- Participation metrics
+	total_participants INTEGER,       -- Number of participating agents
+	most_active_agent VARCHAR(100),   -- Agent with most messages
+	participation_balance FLOAT,      -- Balance score (0-1)
+	-- Quality metrics
+	error_count INTEGER DEFAULT 0,    -- Number of error messages
+	completion_status VARCHAR(20),    -- How the conversation ended
+	goal_achievement FLOAT,           -- Goal achievement score (0-100)
+	-- AutoGen specific metrics
+	orchestration_switches INTEGER DEFAULT 0, -- Number of pattern switches
+	group_chat_efficiency FLOAT,     -- Group chat efficiency score
+	agent_collaboration_score FLOAT, -- Agent collaboration score
+	-- Sentiment and engagement
+	overall_sentiment FLOAT,          -- Average sentiment score
+	sentiment_variance FLOAT,         -- Variance in sentiment
+	engagement_peaks JSON,            -- Timestamps of high engagement
+	id INTEGER NOT NULL, 
+	created_at DATETIME NOT NULL, 
+	updated_at DATETIME NOT NULL, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(conversation_id) REFERENCES conversations (id),
+	UNIQUE (conversation_id)          -- One analytics record per conversation
 );
 
 -- ==============================================================================
@@ -103,6 +154,7 @@ CREATE TABLE messages (
 -- Primary key indexes are automatically created for all tables
 -- Foreign key relationships provide efficient joins
 -- session_id has a unique constraint for conversations
+-- conversation_id has a unique constraint for conversation_analytics
 --
 -- Recommended additional indexes for performance:
 -- CREATE INDEX idx_agents_parent_id ON agents(parent_id);
@@ -110,7 +162,11 @@ CREATE TABLE messages (
 -- CREATE INDEX idx_tasks_assigned_agent ON tasks(assigned_agent_id);
 -- CREATE INDEX idx_tasks_parent_id ON tasks(parent_task_id);
 -- CREATE INDEX idx_tasks_status ON tasks(status);
+-- CREATE INDEX idx_conversations_status ON conversations(status);
+-- CREATE INDEX idx_conversations_pattern ON conversations(orchestration_pattern);
 -- CREATE INDEX idx_messages_conversation ON messages(conversation_id);
 -- CREATE INDEX idx_messages_sender ON messages(sender_agent_id);
+-- CREATE INDEX idx_messages_type ON messages(message_type);
+-- CREATE INDEX idx_analytics_conversation ON conversation_analytics(conversation_id);
 --
 -- ============================================================================== 
