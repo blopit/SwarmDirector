@@ -6,7 +6,7 @@ from typing import Dict, List, Any
 from .base_agent import BaseAgent
 from ..models.task import Task, TaskStatus
 from ..models.agent import Agent
-from utils.logging import log_agent_action
+from ..utils.logging import log_agent_action
 
 class WorkerAgent(BaseAgent):
     """Worker agent that executes specific tasks"""

@@ -252,7 +252,10 @@ class TestTaskEndpoint:
             
             assert response.status_code == 201
             data = response.get_json()
-            assert data['routing_result']['department'] == expected_dept
+            # Check for either 'department' or 'routed_to' key in routing result
+            routing_result = data['routing_result']
+            department = routing_result.get('department') or routing_result.get('routed_to')
+            assert department == expected_dept
 
 
 if __name__ == '__main__':

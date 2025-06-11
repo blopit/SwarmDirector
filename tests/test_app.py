@@ -15,6 +15,12 @@ def app():
     """Create and configure a test app instance"""
     app = create_app()
     app.config['TESTING'] = True
+    
+    # Initialize database tables for testing
+    with app.app_context():
+        from swarm_director.models.base import db
+        db.create_all()
+    
     return app
 
 
@@ -141,6 +147,11 @@ def run_tests():
     app = create_app()
     if not app:
         return False
+    
+    # Initialize database tables for testing
+    with app.app_context():
+        from swarm_director.models.base import db
+        db.create_all()
     
     # Test 2: Database operations
     try:

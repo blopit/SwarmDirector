@@ -3,9 +3,19 @@ Test database utilities functionality
 """
 
 import os
+import sys
 import json
 import tempfile
 import shutil
+import atexit
+import glob
+from pathlib import Path
+
+# Add src directory to Python path for imports
+project_root = Path(__file__).parent.parent
+src_path = project_root / "src"
+sys.path.insert(0, str(src_path))
+
 from flask import Flask
 from swarm_director.models.base import db
 from swarm_director.models.agent import Agent, AgentType, AgentStatus
@@ -16,24 +26,40 @@ from swarm_director.models.email_message import EmailMessage, EmailStatus
 from swarm_director.utils.database import DatabaseManager, init_database_manager
 from swarm_director.utils.migrations import MigrationManager, init_migration_manager
 
+# Global list to track temporary directories and files for cleanup
+_test_artifacts = []
+
 def create_test_app(test_name="test"):
-    """Create a test Flask app with isolated database"""
+    """Create a test Flask app with isolated database using temporary directories"""
     import time
     timestamp = str(int(time.time() * 1000))  # Include milliseconds for uniqueness
-    db_name = f"{test_name}_{timestamp}.db"
-    
+
+    # Create temporary directories for backups and migrations
+    backup_temp_dir = tempfile.mkdtemp(prefix=f'test_backups_{timestamp}_')
+    migrations_temp_dir = tempfile.mkdtemp(prefix=f'test_migrations_{timestamp}_')
+
+    # Track these for cleanup
+    _test_artifacts.extend([backup_temp_dir, migrations_temp_dir])
+
+    # Use temporary database file in instance directory
+    project_root = Path(__file__).parent.parent
+    instance_dir = project_root / "instance"
+    instance_dir.mkdir(exist_ok=True)
+    db_name = instance_dir / f"{test_name}_{timestamp}.db"
+    _test_artifacts.append(str(db_name))
+
     app = Flask(__name__)
     app.config['TESTING'] = True
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_name}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['DATABASE_PATH'] = os.path.abspath(db_name)
-    app.config['BACKUP_DIR'] = f'test_backups_{timestamp}'
-    app.config['MIGRATIONS_DIR'] = f'test_migrations_{timestamp}'
-    
+    app.config['DATABASE_PATH'] = str(db_name)
+    app.config['BACKUP_DIR'] = backup_temp_dir
+    app.config['MIGRATIONS_DIR'] = migrations_temp_dir
+
     db.init_app(app)
     init_database_manager(app)
     init_migration_manager(app)
-    
+
     return app
 
 def cleanup_before_test():
@@ -54,7 +80,7 @@ def test_database_manager():
     app = create_test_app("db_manager_test")
     
     with app.app_context():
-        from utils.database import db_manager
+        from swarm_director.utils.database import db_manager
         
         # Test table creation
         print("1. Testing table creation...")
@@ -176,7 +202,7 @@ def test_migration_manager():
     app = create_test_app("migration_test")
     
     with app.app_context():
-        from utils.migrations import migration_manager
+        from swarm_director.utils.migrations import migration_manager
         
         # Test migration creation
         print("1. Testing migration creation...")
@@ -248,7 +274,7 @@ def test_migration_manager():
         
         # Test initial schema generation
         print("6. Testing initial schema generation...")
-        from utils.database import db_manager
+        from swarm_director.utils.database import db_manager
         db_manager.create_tables()  # Ensure we have tables
         initial_migration = migration_manager.generate_initial_migration()
         assert initial_migration is not None, "Failed to generate initial migration"
@@ -266,7 +292,7 @@ def test_performance_monitoring():
     app = create_test_app("performance_test")
     
     with app.app_context():
-        from utils.database import db_manager
+        from swarm_director.utils.database import db_manager
         
         # Create tables
         db_manager.create_tables()
@@ -355,35 +381,113 @@ def test_performance_monitoring():
 
 def cleanup_test_files():
     """Clean up test files and directories"""
-    test_files = ['test_db_utils.db', 'manage_db.py']
-    test_dirs = ['test_backups', 'test_migrations']
-    
-    for file in test_files:
+    project_root = Path(__file__).parent.parent
+
+    # Clean up tracked test artifacts
+    for artifact in _test_artifacts:
+        try:
+            if os.path.isfile(artifact):
+                os.remove(artifact)
+                print(f"🧹 Removed test file: {artifact}")
+            elif os.path.isdir(artifact):
+                shutil.rmtree(artifact)
+                print(f"🧹 Removed test directory: {artifact}")
+        except (OSError, PermissionError) as e:
+            print(f"⚠️  Could not remove {artifact}: {e}")
+
+    # Clear the artifacts list
+    _test_artifacts.clear()
+
+    # Clean up any remaining timestamped directories in project root
+    for pattern in ['test_backups_*', 'test_migrations_*']:
+        for path in glob.glob(str(project_root / pattern)):
+            try:
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+                    print(f"🧹 Removed orphaned directory: {path}")
+            except (OSError, PermissionError) as e:
+                print(f"⚠️  Could not remove {path}: {e}")
+
+    # Clean up test database files in instance directory
+    instance_dir = project_root / "instance"
+    if instance_dir.exists():
+        for pattern in ['*_test_*.db', '*_test_*.db-*']:
+            for db_file in instance_dir.glob(pattern):
+                try:
+                    db_file.unlink()
+                    print(f"🧹 Removed test database: {db_file}")
+                except (OSError, PermissionError) as e:
+                    print(f"⚠️  Could not remove {db_file}: {e}")
+
+    # Legacy cleanup for old test files
+    legacy_files = ['test_db_utils.db', 'manage_db.py']
+    legacy_dirs = ['test_backups', 'test_migrations']
+
+    for file in legacy_files:
         if os.path.exists(file):
-            os.remove(file)
-    
-    for dir in test_dirs:
+            try:
+                os.remove(file)
+                print(f"🧹 Removed legacy test file: {file}")
+            except (OSError, PermissionError) as e:
+                print(f"⚠️  Could not remove {file}: {e}")
+
+    for dir in legacy_dirs:
         if os.path.exists(dir):
-            shutil.rmtree(dir)
+            try:
+                shutil.rmtree(dir)
+                print(f"🧹 Removed legacy test directory: {dir}")
+            except (OSError, PermissionError) as e:
+                print(f"⚠️  Could not remove {dir}: {e}")
+
+def cleanup_all_test_artifacts():
+    """Comprehensive cleanup of all test artifacts - call this at module exit"""
+    print("🧹 Performing comprehensive test cleanup...")
+
+    try:
+        # Get project root safely
+        import os
+        script_path = os.path.abspath(sys.argv[0])
+        project_root = Path(script_path).parent.parent
+
+        # Clean up tracked artifacts
+        cleanup_test_files()
+
+        # Remove any remaining test backup/migration directories
+        for item in project_root.iterdir():
+            if item.is_dir() and (item.name.startswith('test_backups_') or item.name.startswith('test_migrations_')):
+                try:
+                    shutil.rmtree(item)
+                    print(f"🧹 Removed missed test directory: {item}")
+                except (OSError, PermissionError) as e:
+                    print(f"⚠️  Could not remove {item}: {e}")
+    except Exception as e:
+        print(f"⚠️ Error during final cleanup: {e}")
+
+# Register cleanup function to run at module exit
+atexit.register(cleanup_all_test_artifacts)
 
 def main():
     """Run all database utility tests"""
     print("🚀 Starting Database Utility Tests...\n")
-    
+
+    # Ensure clean start
+    cleanup_test_files()
+
     try:
         test_database_manager()
         test_migration_manager()
         test_performance_monitoring()
-        
+
         print("\n🎉 All database utility tests passed!")
-        
+
     except Exception as e:
         print(f"\n❌ Test failed: {e}")
         cleanup_test_files()
         raise
-    
+
     finally:
         cleanup_test_files()
+        print("🧹 Test cleanup completed")
 
 if __name__ == "__main__":
-    main() 
+    main()

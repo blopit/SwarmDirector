@@ -236,7 +236,7 @@ def register_routes(app):
     def get_agents():
         """Get all agents"""
         try:
-            from models import Agent
+            from .models import Agent
             agents = Agent.query.all()
             return jsonify({
                 'status': 'success',
@@ -257,8 +257,8 @@ def register_routes(app):
             if not data.get('agent_type'):
                 return jsonify({'status': 'error', 'error': 'Agent type is required'}), 400
             
-            from models import Agent
-            from models.agent import AgentType, AgentStatus
+            from .models import Agent
+            from .models.agent import AgentType, AgentStatus
             agent = Agent(
                 name=data['name'],
                 description=data.get('description', ''),
@@ -283,7 +283,7 @@ def register_routes(app):
     def delete_agent(agent_id):
         """Delete an agent"""
         try:
-            from models import Agent
+            from .models import Agent
             agent = Agent.query.get_or_404(agent_id)
             agent.delete()
             return jsonify({
@@ -302,7 +302,7 @@ def register_routes(app):
     def get_tasks():
         """Get all tasks"""
         try:
-            from models import Task
+            from .models.task import Task
             tasks = Task.query.all()
             return jsonify({
                 'status': 'success',
@@ -351,7 +351,7 @@ def register_routes(app):
     def get_conversations():
         """Get all conversations"""
         try:
-            from models import Conversation
+            from .models.conversation import Conversation
             conversations = Conversation.query.all()
             return jsonify({
                 'status': 'success',
@@ -727,11 +727,10 @@ def register_database_commands(app):
     @app.cli.command()
     def seed_db():
         """Seed the database with sample data"""
-        from models import Agent, Task, Conversation
-        from models.agent import AgentType, AgentStatus
-        from models.task import TaskStatus, TaskPriority
-        from models.conversation import ConversationStatus
-        from models.base import db
+        from .models.agent import Agent, AgentType, AgentStatus
+        from .models.task import Task, TaskStatus, TaskPriority
+        from .models.conversation import Conversation, ConversationStatus
+        from .models.base import db
         
         try:
             # Create sample agents
@@ -790,9 +789,10 @@ def register_database_commands(app):
     @app.cli.command()
     def db_status():
         """Show database status and record counts"""
-        from models import Agent, Task, Conversation
-        from models.conversation import Message
-        from models.base import db
+        from .models.agent import Agent
+        from .models.task import Task
+        from .models.conversation import Conversation, Message
+        from .models.base import db
         from sqlalchemy import text
         
         try:
@@ -816,7 +816,7 @@ def register_database_commands(app):
     @app.cli.command()
     def validate_schema():
         """Validate database schema matches models"""
-        from models.base import db
+        from .models.base import db
         from sqlalchemy import inspect
         
         try:

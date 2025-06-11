@@ -6,9 +6,9 @@ import click
 import os
 from flask import Flask
 from flask.cli import with_appcontext
-from utils.database import db_manager, init_database_manager
-from utils.migrations import migration_manager, init_migration_manager
-from models.base import db
+from .database import db_manager, init_database_manager
+from .migrations import migration_manager, init_migration_manager
+from ..models.base import db
 import json
 from datetime import datetime
 

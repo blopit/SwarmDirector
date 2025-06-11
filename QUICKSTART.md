@@ -116,7 +116,16 @@ pip install -r requirements.txt
 ### Database Issues
 ```bash
 # Reset the database
-python -c "from src.swarm_director.app import create_app; from src.swarm_director.models.base import db; app = create_app(); app.app_context().push(); db.create_all()"
+python -c "
+import sys
+sys.path.insert(0, 'src')
+from swarm_director.app import create_app
+from swarm_director.models.base import db
+app = create_app()
+with app.app_context():
+    db.create_all()
+    print('Database reset successfully')
+"
 ```
 
 ## 📖 Key Documentation

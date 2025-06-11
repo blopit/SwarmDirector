@@ -6,7 +6,7 @@ from typing import Dict, List, Any
 from .base_agent import BaseAgent
 from ..models.task import Task, TaskStatus, TaskPriority
 from ..models.agent import Agent, AgentType
-from utils.logging import log_agent_action
+from ..utils.logging import log_agent_action
 
 class SupervisorAgent(BaseAgent):
     """Supervisor agent that can coordinate other agents and manage tasks"""

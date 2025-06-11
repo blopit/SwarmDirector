@@ -12,7 +12,7 @@ from datetime import datetime
 from .supervisor_agent import SupervisorAgent
 from ..models.task import Task, TaskStatus, TaskPriority
 from ..models.agent import Agent, AgentType, AgentStatus
-from utils.logging import log_agent_action
+from ..utils.logging import log_agent_action
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,48 @@ class DirectorAgent(SupervisorAgent):
             'failed_routes': 0,
             'department_counts': {}
         }
-        
+
+        # Initialize department agents
+        self._initialize_department_agents()
+
+    def _initialize_department_agents(self):
+        """Initialize and register department agents"""
+        try:
+            # Import here to avoid circular imports
+            from .communications_dept import CommunicationsDept
+
+            # Create or find communications department agent
+            comm_dept_db = self._get_or_create_department_agent(
+                name="CommunicationsDept",
+                description="Communications department for message drafting and email workflows"
+            )
+
+            # Create and register communications department
+            comm_dept = CommunicationsDept(comm_dept_db)
+            self.register_department_agent('communications', comm_dept)
+
+            log_agent_action(self.name, "Department agents initialized successfully")
+
+        except Exception as e:
+            logger.error(f"Error initializing department agents: {e}")
+            log_agent_action(self.name, f"Warning: Could not initialize all department agents: {e}")
+
+    def _get_or_create_department_agent(self, name: str, description: str) -> Agent:
+        """Get existing department agent or create new one"""
+        from ..models.agent import AgentType, AgentStatus
+
+        agent = Agent.query.filter_by(name=name).first()
+        if not agent:
+            agent = Agent(
+                name=name,
+                agent_type=AgentType.SUPERVISOR,
+                status=AgentStatus.ACTIVE,
+                description=description,
+                parent_id=self.db_agent.id
+            )
+            agent.save()
+        return agent
+
     def _initialize_intent_keywords(self) -> Dict[str, List[str]]:
         """Initialize keyword mappings for intent classification"""
         return {

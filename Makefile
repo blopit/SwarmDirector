@@ -50,4 +50,19 @@ clean:
 	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	@rm -rf .pytest_cache 2>/dev/null || true
 	@rm -rf reports/coverage 2>/dev/null || true
-	@echo "Cleanup complete!" 
+	@echo "Cleanup complete!"
+
+# Clean test artifacts
+clean-tests:
+	@echo "Cleaning up test artifacts..."
+	@rm -rf test_backups_* 2>/dev/null || true
+	@rm -rf test_migrations_* 2>/dev/null || true
+	@rm -rf pytest_backups_* 2>/dev/null || true
+	@rm -rf pytest_migrations_* 2>/dev/null || true
+	@find instance -name "*_test_*.db*" -delete 2>/dev/null || true
+	@find . -name "*_pytest_*.db*" -delete 2>/dev/null || true
+	@echo "Test artifacts cleanup complete!"
+
+# Full cleanup including test artifacts
+clean-all: clean clean-tests
+	@echo "Full cleanup complete!"
