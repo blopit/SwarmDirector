@@ -114,6 +114,116 @@ def register_routes(app):
             'database': db_status,
             'version': '1.0.0'
         })
+    
+    @app.route('/task', methods=['POST'])
+    def submit_task():
+        """Task submission endpoint for DirectorAgent routing"""
+        try:
+            # Validate request content type
+            if not request.is_json:
+                return jsonify({
+                    'status': 'error',
+                    'error': 'Content-Type must be application/json'
+                }), 400
+            
+            try:
+                data = request.get_json(force=True)
+            except Exception:
+                return jsonify({
+                    'status': 'error',
+                    'error': 'Invalid JSON in request body'
+                }), 400
+            
+            # Validate required fields
+            if not data:
+                return jsonify({
+                    'status': 'error',
+                    'error': 'Request body is required'
+                }), 400
+            
+            if 'type' not in data:
+                return jsonify({
+                    'status': 'error',
+                    'error': 'Field "type" is required'
+                }), 400
+            
+            # Extract task details
+            task_type = data.get('type')
+            task_args = data.get('args', {})
+            task_title = data.get('title', f'Task: {task_type}')
+            task_description = data.get('description', '')
+            task_priority = data.get('priority', 'medium')
+            
+            # Import here to avoid circular imports
+            from models.task import Task, TaskStatus, TaskPriority
+            from models.agent import Agent, AgentType
+            from agents.director import DirectorAgent
+            
+            # Create task in database
+            from datetime import datetime
+            task = Task(
+                title=task_title,
+                description=task_description,
+                status=TaskStatus.PENDING,
+                priority=getattr(TaskPriority, task_priority.upper(), TaskPriority.MEDIUM),
+                input_data={
+                    'type': task_type,
+                    'args': task_args,
+                    'submitted_at': datetime.utcnow().isoformat()
+                }
+            )
+            task.save()
+            
+            # Generate unique task_id for response
+            task_id = f"task_{task.id}_{task.created_at.strftime('%Y%m%d_%H%M%S')}"
+            
+            # Get or create DirectorAgent
+            director_db = Agent.query.filter_by(
+                agent_type=AgentType.SUPERVISOR,
+                name='DirectorAgent'
+            ).first()
+            
+            if not director_db:
+                # Create DirectorAgent if it doesn't exist
+                director_db = Agent(
+                    name='DirectorAgent',
+                    agent_type=AgentType.SUPERVISOR,
+                    capabilities=['routing', 'intent_classification', 'task_delegation']
+                )
+                director_db.save()
+            
+            director = DirectorAgent(director_db)
+            
+            # Process task through DirectorAgent
+            result = director.execute_task(task)
+            
+            # Log the task submission
+            app.logger.info(f'Task submitted: {task_id}, type: {task_type}')
+            
+            # Return standardized response
+            return jsonify({
+                'status': 'success',
+                'task_id': task_id,
+                'message': 'Task submitted successfully',
+                'routing_result': result,
+                'task_details': {
+                    'id': task.id,
+                    'title': task.title,
+                    'type': task_type,
+                    'status': task.status.value,
+                    'created_at': task.created_at.isoformat()
+                }
+            }), 201
+            
+        except Exception as e:
+            # Log the error
+            app.logger.error(f'Error processing task submission: {str(e)}')
+            
+            return jsonify({
+                'status': 'error',
+                'error': 'Internal server error',
+                'message': 'Failed to process task submission'
+            }), 500
 
 if __name__ == '__main__':
     # Create logs directory if it doesn't exist
