@@ -1,6 +1,6 @@
 # Task ID: 4
 # Title: Implement AutoGen Integration Framework
-# Status: pending
+# Status: done
 # Dependencies: 1
 # Priority: high
 # Description: Set up Microsoft's AutoGen framework integration for agent orchestration and multi-agent chains.
