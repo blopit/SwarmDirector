@@ -10,6 +10,7 @@ from datetime import datetime
 
 from .worker_agent import WorkerAgent
 from .review_logic import ReviewLogic
+from .diff_generator import DiffGenerator
 from ..models.agent import Agent
 from ..models.task import Task
 from ..models.draft import Draft, DraftStatus, DraftType
@@ -28,6 +29,9 @@ class DraftReviewAgent(WorkerAgent):
         
         # Initialize the ReviewLogic component with default configuration
         self.review_logic = ReviewLogic()
+        
+        # Initialize the DiffGenerator component for JSON diff generation
+        self.diff_generator = DiffGenerator()
         
         # Maintain backward compatibility with old properties
         self.review_criteria = self.review_logic.review_criteria
@@ -92,99 +96,20 @@ class DraftReviewAgent(WorkerAgent):
             reviewer_name=self.name
         )
         
-        # Generate JSON diff for specific edits (DraftReviewAgent-specific feature)
-        json_diff = self._generate_json_diff(content, review_result.get('suggestions', []))
+        # Generate JSON diff for specific edits using DiffGenerator component
+        json_diff = self.diff_generator.generate_diff(
+            original=content,
+            suggestions=review_result.get('suggestions', []),
+            context={'draft_type': draft_type, 'reviewer': self.name}
+        )
         
         # Add JSON diff to the review result
         review_result['json_diff'] = json_diff
         
         return review_result
     
-    def _generate_json_diff(self, original_content: str, suggestions: List[Dict]) -> List[Dict[str, Any]]:
-        """
-        Generate JSON diff for specific edits based on suggestions
-        This method provides specific edit locations and changes
-        """
-        json_diff = []
-        
-        try:
-            lines = original_content.split('\n')
-            
-            for i, suggestion in enumerate(suggestions[:10]):  # Limit to top 10 suggestions
-                if suggestion.get('suggestion_type') == 'improvement':
-                    issue = suggestion.get('issue', '')
-                    category = suggestion.get('category', 'general')
-                    priority = suggestion.get('priority', 'low')
-                    
-                    # Generate a diff entry based on the suggestion
-                    if 'punctuation' in issue.lower():
-                        # Find lines that might need punctuation fixes
-                        for line_num, line in enumerate(lines):
-                            if line.strip() and not line.strip().endswith(('.', '!', '?', ':')):
-                                json_diff.append({
-                                    'line': line_num + 1,
-                                    'type': 'modification',
-                                    'category': category,
-                                    'priority': priority,
-                                    'original': line,
-                                    'suggested': line.rstrip() + '.',
-                                    'reason': issue,
-                                    'confidence': 0.8
-                                })
-                                break
-                    
-                    elif 'paragraph' in issue.lower() and 'break' in issue.lower():
-                        # Suggest paragraph breaks for long content
-                        for line_num, line in enumerate(lines):
-                            if len(line) > 200 and '. ' in line:
-                                split_point = line.find('. ') + 2
-                                json_diff.append({
-                                    'line': line_num + 1,
-                                    'type': 'split',
-                                    'category': category,
-                                    'priority': priority,
-                                    'original': line,
-                                    'suggested': [line[:split_point].strip(), line[split_point:].strip()],
-                                    'reason': issue,
-                                    'confidence': 0.7
-                                })
-                                break
-                    
-                    elif 'section' in issue.lower() or 'header' in issue.lower():
-                        # Suggest adding headers
-                        json_diff.append({
-                            'line': 1,
-                            'type': 'insertion',
-                            'category': category,
-                            'priority': priority,
-                            'suggested': '# Document Title\n\n',
-                            'reason': issue,
-                            'confidence': 0.6
-                        })
-                    
-                    else:
-                        # Generic suggestion
-                        json_diff.append({
-                            'line': 1,
-                            'type': 'general',
-                            'category': category,
-                            'priority': priority,
-                            'reason': issue,
-                            'suggestion': f"Consider addressing: {issue}",
-                            'confidence': 0.5
-                        })
-        
-        except Exception as e:
-            logger.error(f"Error generating JSON diff: {str(e)}")
-            # Return a basic diff entry if generation fails
-            json_diff.append({
-                'line': 1,
-                'type': 'error',
-                'reason': f"Could not generate detailed diff: {str(e)}",
-                'suggestion': "Manual review recommended"
-            })
-        
-        return json_diff
+    # Note: The old _generate_json_diff method has been replaced by the DiffGenerator component
+    # for more sophisticated and reusable diff generation capabilities
     
     def _create_or_update_draft(self, task: Task, content: str, draft_type: str, 
                                review_result: Dict) -> Optional[Draft]:
