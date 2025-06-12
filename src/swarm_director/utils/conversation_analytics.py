@@ -173,6 +173,9 @@ class ConversationAnalyticsEngine:
             # Group chat efficiency (more speaker changes can indicate good collaboration)
             if len(autogen_history) > 0:
                 analytics.group_chat_efficiency = min(100, (speaker_changes / len(autogen_history)) * 100)
+        else:
+            # Default value when no autogen history is available
+            analytics.group_chat_efficiency = 0
         
         # Agent collaboration score (based on response patterns and participation)
         agent_responses = defaultdict(int)
@@ -193,6 +196,9 @@ class ConversationAnalyticsEngine:
             total_agents = len(agent_responses)
             avg_interactions = sum(len(interactions) for interactions in agent_interactions.values()) / total_agents
             analytics.agent_collaboration_score = min(100, avg_interactions * 20)  # Scale to 0-100
+        else:
+            # Default value when no agent responses are available
+            analytics.agent_collaboration_score = 0
     
     def _calculate_sentiment_metrics(self, conversation: Conversation, analytics: ConversationAnalytics):
         """Calculate sentiment-related metrics"""

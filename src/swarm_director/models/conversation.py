@@ -73,10 +73,10 @@ class Conversation(BaseModel):
         """Convert conversation to dictionary"""
         data = super().to_dict()
         data.update({
-            'status': self.status.value,
+            'status': self.status.value if self.status else None,
             'orchestration_pattern': self.orchestration_pattern.value if self.orchestration_pattern else None,
             'initiator_agent_id': self.initiator_agent_id,
-            'messages_count': len(self.messages) if self.messages else 0,
+            'messages_count': len(self.messages) if hasattr(self, 'messages') and self.messages else 0,
             'total_duration': self.total_duration,
             'effectiveness_score': self.effectiveness_score,
             'engagement_score': self.engagement_score
@@ -184,7 +184,7 @@ class Message(BaseModel):
         """Convert message to dictionary"""
         data = super().to_dict()
         data.update({
-            'message_type': self.message_type.value,
+            'message_type': self.message_type.value if self.message_type else None,
             'conversation_id': self.conversation_id,
             'sender_agent_id': self.sender_agent_id,
             'agent_name': self.agent_name,

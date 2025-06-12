@@ -44,16 +44,23 @@ class TestConversationAnalytics(unittest.TestCase):
         )
         self.agent2.save()
         
-        # Create test conversation
+        # Create test conversation with autogen chat history
+        autogen_history = [
+            {"name": "TestAgent1", "content": "Hello, let's start working on this task."},
+            {"name": "TestAgent2", "content": "Sure, I'm ready to help. What do we need to do?"},
+            {"name": "TestAgent1", "content": "Perfect! We've successfully completed the task."}
+        ]
+        
         self.conversation = Conversation(
             title="Test Conversation",
-            description="Test conversation for analytics",
+            description="Test conversation for analytics", 
             status=ConversationStatus.ACTIVE,
             initiator_agent_id=self.agent1.id,
             session_id="test_session_123",
             conversation_type="test",
             orchestration_pattern=OrchestrationPattern.EXPERTISE_BASED,
-            start_time=datetime.utcnow() - timedelta(minutes=10)
+            start_time=datetime.utcnow() - timedelta(minutes=10),
+            autogen_chat_history=autogen_history
         )
         self.conversation.save()
         
@@ -220,9 +227,9 @@ class TestConversationAnalytics(unittest.TestCase):
         
         # Summary should contain key information
         summary = insights['summary']
-        self.assertIn('conversation_duration', summary)
-        self.assertIn('participation_summary', summary)
-        self.assertIn('efficiency_summary', summary)
+        self.assertIn('duration', summary)
+        self.assertIn('participation', summary)
+        self.assertIn('performance', summary)
         
         # Recommendations should be a list
         self.assertIsInstance(insights['recommendations'], list)

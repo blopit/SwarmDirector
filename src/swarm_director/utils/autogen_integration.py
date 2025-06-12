@@ -626,7 +626,10 @@ class AdvancedMultiAgentChain(MultiAgentChain):
                  conversation_config: Optional[ConversationConfig] = None):
         super().__init__(name)
         self.conversation_config = conversation_config or ConversationConfig()
+        self.conversation_director = ConversationDirector()
         self.session_manager: Optional[ConversationSessionManager] = None
+        self.orchestration_metrics = {}
+        self.session_logs = []
         self.orchestration_analytics = {
             'pattern_usage': defaultdict(int),
             'session_start': None,
@@ -639,17 +642,16 @@ class AdvancedMultiAgentChain(MultiAgentChain):
         config = conversation_config or self.conversation_config
         
         if not self.agents:
-            raise ValueError("No agents available for group chat")
+            raise ValueError("No agents added to the chain")
         
         # Create conversation director for speaker selection
-        director = ConversationDirector()
-        speaker_selection_func = director.create_custom_speaker_selection(config.pattern)
-        termination_func = director.create_termination_condition(config)
+        speaker_selection_func = self.conversation_director.create_custom_speaker_selection(config.pattern)
+        termination_func = self.conversation_director.create_termination_condition(config)
         
         # Get AutoGen agents
         autogen_agents = [agent.agent for agent in self.agents]
         
-        group_chat = autogen.GroupChat(
+        self.group_chat = autogen.GroupChat(
             agents=autogen_agents,
             messages=[],
             max_round=config.max_round,
@@ -658,13 +660,13 @@ class AdvancedMultiAgentChain(MultiAgentChain):
         )
         
         # Create group chat manager with enhanced termination
-        manager = autogen.GroupChatManager(
-            groupchat=group_chat,
+        self.manager = autogen.GroupChatManager(
+            groupchat=self.group_chat,
             llm_config=self.agents[0].config.to_llm_config(),
             is_termination_msg=termination_func
         )
         
-        return group_chat, manager
+        return self.group_chat
     
     def execute_orchestrated_conversation(self, message: str, pattern: Optional[OrchestrationPattern] = None) -> Dict:
         """Execute a conversation with orchestration and full tracking"""
@@ -686,7 +688,7 @@ class AdvancedMultiAgentChain(MultiAgentChain):
         
         try:
             # Create enhanced group chat
-            group_chat, manager = self.create_enhanced_group_chat()
+            group_chat = self.create_enhanced_group_chat()
             
             # Track initial message
             initial_message = self.session_manager.track_message(
@@ -702,7 +704,7 @@ class AdvancedMultiAgentChain(MultiAgentChain):
             if self.agents:
                 initiator = self.agents[0].agent
                 chat_result = initiator.initiate_chat(
-                    manager,
+                    self.manager,
                     message=message,
                     max_turns=self.conversation_config.max_round
                 )
@@ -726,15 +728,27 @@ class AdvancedMultiAgentChain(MultiAgentChain):
             duration = (end_time - start_time).total_seconds()
             self.orchestration_analytics['total_duration'] += duration
             
-            return {
-                "status": "completed",
-                "conversation_id": conversation.id,
+            # Log session for analytics
+            session_log = {
                 "session_id": self.session_manager.session_id,
-                "pattern_used": self.conversation_config.pattern.value,
-                "duration": duration,
-                "message_count": len(group_chat.messages) if hasattr(group_chat, 'messages') else 0,
-                "analytics": analytics.to_dict() if analytics else None,
-                "orchestration_analytics": self.get_orchestration_analytics()
+                "duration_seconds": duration,
+                "pattern": self.conversation_config.pattern.value,
+                "agent_count": len(self.agents),
+                "initial_message": message
+            }
+            self.session_logs.append(session_log)
+            
+            # Log message for each agent
+            for agent in self.agents:
+                if hasattr(agent, 'log_message'):
+                    agent.log_message({"content": message, "type": "orchestrated_conversation"})
+            
+            return {
+                "session_id": self.session_manager.session_id,
+                "duration_seconds": duration,
+                "pattern": self.conversation_config.pattern.value,
+                "agent_count": len(self.agents),
+                "initial_message": message
             }
             
         except Exception as e:
@@ -785,27 +799,22 @@ class AdvancedMultiAgentChain(MultiAgentChain):
     
     def get_orchestration_analytics(self) -> Dict:
         """Get comprehensive orchestration analytics"""
-        base_analytics = super().get_chain_stats()
+        if not self.session_logs:
+            return {"message": "No orchestration sessions recorded"}
         
-        enhanced_analytics = {
-            **base_analytics,
-            "orchestration_metrics": {
-                "pattern_usage": dict(self.orchestration_analytics['pattern_usage']),
-                "conversation_count": self.orchestration_analytics['conversation_count'],
-                "total_duration": self.orchestration_analytics['total_duration'],
-                "avg_conversation_duration": (
-                    self.orchestration_analytics['total_duration'] / 
-                    max(1, self.orchestration_analytics['conversation_count'])
-                ),
-                "current_pattern": self.conversation_config.pattern.value,
-                "session_info": {
-                    "current_session": self.session_manager.session_id if self.session_manager else None,
-                    "current_conversation": self.session_manager.conversation.id if self.session_manager and self.session_manager.conversation else None
-                }
-            }
+        total_duration = sum(log["duration_seconds"] for log in self.session_logs)
+        pattern_usage = {}
+        for log in self.session_logs:
+            pattern = log["pattern"]
+            pattern_usage[pattern] = pattern_usage.get(pattern, 0) + 1
+        
+        return {
+            "total_sessions": len(self.session_logs),
+            "total_duration_seconds": total_duration,
+            "average_duration_seconds": total_duration / len(self.session_logs),
+            "pattern_usage": pattern_usage,
+            "agent_count": len(self.agents)
         }
-        
-        return enhanced_analytics
 
 
 class OrchestrationWorkflow:

@@ -120,34 +120,72 @@ def register_routes(app):
     
     @app.route('/task', methods=['POST'])
     def submit_task():
-        """Task submission endpoint for DirectorAgent routing"""
+        """Enhanced task submission endpoint with comprehensive validation"""
         try:
-            # Validate request content type
-            if not request.is_json:
-                return jsonify({
-                    'status': 'error',
-                    'error': 'Content-Type must be application/json'
-                }), 400
+            # Import validation utilities
+            from .utils.validation import validate_request, RequestValidator
+            from .utils.rate_limiter import api_rate_limit
+            from .schemas.task_schemas import get_schema_for_task_type
             
+            # Apply comprehensive validation
             try:
-                data = request.get_json(force=True)
-            except Exception:
+                # 1. Content-type validation
+                RequestValidator.validate_content_type()
+                
+                # 2. JSON body validation and sanitization
+                data = RequestValidator.validate_json_body()
+                
+                # 3. Basic structure validation
+                if not data or 'type' not in data:
+                    return jsonify({
+                        'status': 'error',
+                        'error': 'Field "type" is required',
+                        'error_code': 'REQUIRED_FIELD'
+                    }), 400
+                
+                # 4. Get task-specific schema and validate
+                task_type = data.get('type')
+                schema = get_schema_for_task_type(task_type)
+                
+                # Apply schema validation
+                from jsonschema import validate, ValidationError as JsonSchemaValidationError
+                try:
+                    validate(instance=data, schema=schema)
+                except JsonSchemaValidationError as e:
+                    field_path = ".".join(str(p) for p in e.absolute_path) if e.absolute_path else "root"
+                    return jsonify({
+                        'status': 'error',
+                        'error': f"Schema validation failed at '{field_path}': {e.message}",
+                        'error_code': 'SCHEMA_VALIDATION_ERROR',
+                        'field': field_path
+                    }), 400
+                
+                # 5. Sanitize all input data
+                data = RequestValidator.sanitize_input(data)
+                
+                # 6. Rate limiting check (simulated - would normally use decorator)
+                from .utils.rate_limiter import rate_limiter, get_client_identifier
+                client_id = get_client_identifier()
+                is_allowed, rate_info = rate_limiter.is_allowed(f"ip:{client_id}", 100, 3600)
+                
+                if not is_allowed:
+                    response = jsonify({
+                        'status': 'error',
+                        'error': 'Rate limit exceeded',
+                        'error_code': 'RATE_LIMIT_EXCEEDED',
+                        'rate_limit': rate_info
+                    })
+                    response.headers['X-RateLimit-Limit'] = str(rate_info['limit'])
+                    response.headers['X-RateLimit-Remaining'] = str(rate_info['remaining'])
+                    response.headers['X-RateLimit-Reset'] = str(rate_info['reset'])
+                    response.headers['Retry-After'] = str(rate_info['retry_after'])
+                    return response, 429
+                
+            except Exception as validation_error:
                 return jsonify({
                     'status': 'error',
-                    'error': 'Invalid JSON in request body'
-                }), 400
-            
-            # Validate required fields
-            if not data:
-                return jsonify({
-                    'status': 'error',
-                    'error': 'Request body is required'
-                }), 400
-            
-            if 'type' not in data:
-                return jsonify({
-                    'status': 'error',
-                    'error': 'Field "type" is required'
+                    'error': str(validation_error),
+                    'error_code': 'VALIDATION_ERROR'
                 }), 400
             
             # Extract task details
@@ -355,7 +393,8 @@ def register_routes(app):
             conversations = Conversation.query.all()
             return jsonify({
                 'status': 'success',
-                'conversations': [conv.to_dict() for conv in conversations]
+                'conversations': [conv.to_dict() for conv in conversations],
+                'count': len(conversations)
             })
         except Exception as e:
             app.logger.error(f'Error fetching conversations: {e}')
@@ -512,7 +551,7 @@ def register_routes(app):
                     'total_participants': int(analytics_stats.total_participants or 0),
                     'total_errors': int(analytics_stats.total_errors or 0),
                     'pattern_distribution': {
-                        pattern[0]: pattern[1] for pattern in pattern_distribution if pattern[0]
+                        pattern[0].value if pattern[0] else None: pattern[1] for pattern in pattern_distribution if pattern[0]
                     }
                 }
             })

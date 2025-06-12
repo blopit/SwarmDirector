@@ -13,6 +13,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 import hashlib
 import time
+import asyncio
+from concurrent.futures import ThreadPoolExecutor, as_completed, Future
+from collections import defaultdict
 
 from .supervisor_agent import SupervisorAgent
 from ..models.task import Task, TaskStatus, TaskPriority, TaskType
@@ -45,6 +48,55 @@ class DirectorState(Enum):
     MAINTENANCE = "maintenance"
     ERROR = "error"
 
+class RoutingStrategy(Enum):
+    """Enumeration for routing strategies"""
+    SINGLE_AGENT = "single_agent"
+    PARALLEL_AGENTS = "parallel_agents"
+    SEQUENTIAL_AGENTS = "sequential_agents"
+    SCATTER_GATHER = "scatter_gather"
+    LOAD_BALANCED = "load_balanced"
+
+class AgentSelectionCriteria(Enum):
+    """Criteria for selecting agents"""
+    AVAILABILITY = "availability"
+    PERFORMANCE = "performance"
+    WORKLOAD = "workload"
+    EXPERTISE = "expertise"
+    RANDOM = "random"
+
+@dataclass
+class RoutingDecision:
+    """Represents a routing decision with metadata"""
+    strategy: RoutingStrategy
+    selected_agents: List[str]
+    confidence: float
+    reasoning: str
+    expected_execution_time: Optional[float] = None
+    fallback_agents: Optional[List[str]] = None
+    created_at: datetime = field(default_factory=datetime.utcnow)
+
+@dataclass
+class TaskExecutionResult:
+    """Result from task execution with detailed metadata"""
+    agent_name: str
+    department: str
+    status: str
+    result: Dict[str, Any]
+    execution_time: float
+    errors: Optional[List[str]] = None
+    warnings: Optional[List[str]] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+@dataclass
+class AggregatedResult:
+    """Aggregated result from multiple agents"""
+    primary_result: Dict[str, Any]
+    individual_results: List[TaskExecutionResult]
+    aggregation_method: str
+    consensus_score: Optional[float] = None
+    conflicts_detected: bool = False
+    execution_summary: Optional[Dict[str, Any]] = None
+
 @dataclass
 class DirectorConfig:
     """Configuration class for DirectorAgent"""
@@ -55,6 +107,14 @@ class DirectorConfig:
     enable_auto_retry: bool = True
     max_retries: int = 3
     routing_confidence_threshold: float = 0.7
+    # New routing configuration
+    enable_parallel_execution: bool = True
+    max_parallel_agents: int = 3
+    parallel_timeout_seconds: int = 120
+    enable_load_balancing: bool = True
+    agent_selection_criteria: AgentSelectionCriteria = AgentSelectionCriteria.PERFORMANCE
+    enable_result_aggregation: bool = True
+    consensus_threshold: float = 0.75
 
 @dataclass
 class DirectorMetrics:
@@ -66,6 +126,11 @@ class DirectorMetrics:
     average_response_time: float = 0.0
     department_routing_counts: Dict[str, int] = field(default_factory=dict)
     error_counts: Dict[str, int] = field(default_factory=dict)
+    # New parallel execution metrics
+    parallel_executions: int = 0
+    aggregated_results: int = 0
+    agent_performance_scores: Dict[str, float] = field(default_factory=dict)
+    routing_strategy_usage: Dict[str, int] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert metrics to dictionary"""
@@ -76,7 +141,11 @@ class DirectorMetrics:
             'direct_handled': self.direct_handled,
             'average_response_time': self.average_response_time,
             'department_routing_counts': dict(self.department_routing_counts),
-            'error_counts': dict(self.error_counts)
+            'error_counts': dict(self.error_counts),
+            'parallel_executions': self.parallel_executions,
+            'aggregated_results': self.aggregated_results,
+            'agent_performance_scores': dict(self.agent_performance_scores),
+            'routing_strategy_usage': dict(self.routing_strategy_usage)
         }
 
 @dataclass 
@@ -317,13 +386,19 @@ class DirectorAgent(SupervisorAgent):
         self.classification_cache: Dict[str, ClassificationCache] = {}
         self.feedback_history: List[ClassificationFeedback] = []
         
+        # Routing infrastructure for parallel execution and advanced strategies
+        self.thread_pool = ThreadPoolExecutor(max_workers=self.config.max_parallel_agents)
+        self.routing_decisions: List[RoutingDecision] = []
+        self.agent_workload: Dict[str, int] = defaultdict(int)
+        
         # Metrics and performance tracking  
         self.metrics = DirectorMetrics()
         
         # Initialize core components
         try:
             self.intent_keywords = self._initialize_intent_keywords()
-            self.department_agents = self._initialize_department_agents()
+            self.department_agents = {}  # Initialize as empty dict first
+            self._initialize_department_agents()  # Then populate it
             self.routing_stats = self._initialize_routing_stats()
             
             # Set state to active after successful initialization
@@ -1281,4 +1356,287 @@ class DirectorAgent(SupervisorAgent):
             }
         except Exception as e:
             logger.error(f"Error exporting training data: {e}")
-            return {"error": str(e)} 
+            return {"error": str(e)}
+
+    # ===== ENHANCED ROUTING LOGIC AND AGENT COMMUNICATION =====
+
+    def make_routing_decision(self, task: Task, intent: str, confidence: float) -> RoutingDecision:
+        """
+        Make intelligent routing decision based on task complexity, agent availability, and performance
+        """
+        try:
+            # Determine optimal routing strategy
+            strategy = self._determine_routing_strategy(task, intent, confidence)
+            
+            # Select agents based on strategy and criteria
+            selected_agents = self._select_agents_for_strategy(strategy, intent, task)
+            
+            # Calculate expected execution time
+            expected_time = self._estimate_execution_time(strategy, selected_agents, task)
+            
+            # Identify fallback agents
+            fallback_agents = self._identify_fallback_agents(intent, selected_agents)
+            
+            # Create routing decision with reasoning
+            reasoning = self._generate_routing_reasoning(strategy, selected_agents, intent, confidence)
+            
+            decision = RoutingDecision(
+                strategy=strategy,
+                selected_agents=selected_agents,
+                confidence=confidence,
+                reasoning=reasoning,
+                expected_execution_time=expected_time,
+                fallback_agents=fallback_agents
+            )
+            
+            # Store decision for analytics
+            self.routing_decisions.append(decision)
+            
+            # Update strategy usage metrics
+            with self._lock:
+                self.metrics.routing_strategy_usage[strategy.value] = (
+                    self.metrics.routing_strategy_usage.get(strategy.value, 0) + 1
+                )
+            
+            log_agent_action(self.name, f"Routing decision: {strategy.value} for {intent} with {len(selected_agents)} agents")
+            
+            return decision
+            
+        except Exception as e:
+            logger.error(f"Error making routing decision: {e}")
+            # Fallback to single agent strategy
+            return RoutingDecision(
+                strategy=RoutingStrategy.SINGLE_AGENT,
+                selected_agents=[intent],
+                confidence=confidence,
+                reasoning=f"Fallback due to error: {str(e)}"
+            )
+
+    def _determine_routing_strategy(self, task: Task, intent: str, confidence: float) -> RoutingStrategy:
+        """Determine the optimal routing strategy based on task characteristics"""
+        
+        # Check if parallel execution is enabled
+        if not self.config.enable_parallel_execution:
+            return RoutingStrategy.SINGLE_AGENT
+        
+        # Analyze task complexity
+        task_complexity = self._analyze_task_complexity(task)
+        
+        # Check available agents for the intent
+        available_agents = self._get_available_agents_for_intent(intent)
+        
+        # Strategy selection logic
+        if task_complexity >= 8 and len(available_agents) >= 2:
+            # High complexity tasks benefit from multiple perspectives
+            return RoutingStrategy.SCATTER_GATHER
+        elif confidence < self.config.routing_confidence_threshold and len(available_agents) >= 2:
+            # Low confidence benefits from consensus
+            return RoutingStrategy.PARALLEL_AGENTS
+        elif self.config.enable_load_balancing and len(available_agents) >= 2:
+            # Load balancing when multiple agents available
+            return RoutingStrategy.LOAD_BALANCED
+        else:
+            # Default to single agent
+            return RoutingStrategy.SINGLE_AGENT
+
+    def _analyze_task_complexity(self, task: Task) -> int:
+        """Analyze task complexity on a scale of 1-10"""
+        complexity_score = 1
+        
+        # Analyze task description length
+        description_length = len(task.description or "")
+        if description_length > 500:
+            complexity_score += 2
+        elif description_length > 200:
+            complexity_score += 1
+        
+        # Analyze input data complexity
+        if task.input_data:
+            if isinstance(task.input_data, dict) and len(task.input_data) > 5:
+                complexity_score += 2
+            elif isinstance(task.input_data, (list, dict)) and len(str(task.input_data)) > 1000:
+                complexity_score += 3
+        
+        # Analyze task priority
+        if hasattr(task, 'priority') and task.priority == TaskPriority.HIGH:
+            complexity_score += 1
+        
+        # Check for keywords indicating complexity
+        complex_keywords = ['analyze', 'comprehensive', 'detailed', 'complex', 'multi-step', 'integration']
+        task_text = f"{task.title} {task.description}".lower()
+        for keyword in complex_keywords:
+            if keyword in task_text:
+                complexity_score += 1
+        
+        return min(complexity_score, 10)  # Cap at 10
+
+    def _get_available_agents_for_intent(self, intent: str) -> List[str]:
+        """Get list of available agents that can handle the given intent"""
+        available_agents = []
+        
+        # Check primary department agent
+        if intent in self.department_agents:
+            agent = self.department_agents[intent]
+            if agent.is_available():
+                available_agents.append(intent)
+        
+        # Check for alternative agents (future enhancement)
+        # This could include agents from related departments or multi-skilled agents
+        
+        return available_agents
+
+    def _select_agents_for_strategy(self, strategy: RoutingStrategy, intent: str, task: Task) -> List[str]:
+        """Select specific agents based on routing strategy"""
+        
+        if strategy == RoutingStrategy.SINGLE_AGENT:
+            return [intent]
+        
+        elif strategy == RoutingStrategy.PARALLEL_AGENTS:
+            # Select up to max_parallel_agents for parallel execution
+            available_agents = self._get_available_agents_for_intent(intent)
+            return available_agents[:self.config.max_parallel_agents]
+        
+        elif strategy == RoutingStrategy.SCATTER_GATHER:
+            # Select agents from different departments for diverse perspectives
+            selected = [intent]
+            
+            # Add complementary departments
+            complementary_depts = self._get_complementary_departments(intent)
+            for dept in complementary_depts:
+                if dept in self.department_agents and self.department_agents[dept].is_available():
+                    selected.append(dept)
+                    if len(selected) >= self.config.max_parallel_agents:
+                        break
+            
+            return selected
+        
+        elif strategy == RoutingStrategy.LOAD_BALANCED:
+            # Select agent with lowest current workload
+            available_agents = self._get_available_agents_for_intent(intent)
+            if available_agents:
+                # Sort by workload (ascending)
+                sorted_agents = sorted(available_agents, key=lambda a: self.agent_workload.get(a, 0))
+                return [sorted_agents[0]]
+            
+        return [intent]  # Fallback
+
+    def _get_complementary_departments(self, primary_intent: str) -> List[str]:
+        """Get departments that complement the primary intent"""
+        complementary_map = {
+            'communications': ['analysis'],  # Analysis can help improve communications
+            'analysis': ['communications'],  # Communications can help present analysis
+            'automation': ['analysis', 'coordination'],  # Analysis and coordination support automation
+            'coordination': ['communications', 'analysis']  # Communications and analysis support coordination
+        }
+        
+        return complementary_map.get(primary_intent, [])
+
+    def _estimate_execution_time(self, strategy: RoutingStrategy, selected_agents: List[str], task: Task) -> float:
+        """Estimate execution time based on strategy and agents"""
+        
+        base_time = 30.0  # Base execution time in seconds
+        
+        # Adjust based on task complexity
+        complexity = self._analyze_task_complexity(task)
+        time_multiplier = 1.0 + (complexity - 1) * 0.2  # 20% increase per complexity point
+        
+        # Adjust based on strategy
+        if strategy == RoutingStrategy.PARALLEL_AGENTS:
+            # Parallel execution is faster but has coordination overhead
+            return base_time * time_multiplier * 0.7 + 10  # 30% faster + 10s overhead
+        elif strategy == RoutingStrategy.SCATTER_GATHER:
+            # Scatter-gather takes longer due to aggregation
+            return base_time * time_multiplier * 1.3 + 20  # 30% slower + 20s overhead
+        else:
+            return base_time * time_multiplier
+
+    def _identify_fallback_agents(self, intent: str, selected_agents: List[str]) -> List[str]:
+        """Identify fallback agents in case primary agents fail"""
+        fallback_agents = []
+        
+        # Add fallback department if not already selected
+        if self.config.fallback_department not in selected_agents:
+            fallback_agents.append(self.config.fallback_department)
+        
+        # Add alternative agents from the same domain
+        available_agents = self._get_available_agents_for_intent(intent)
+        for agent in available_agents:
+            if agent not in selected_agents and agent not in fallback_agents:
+                fallback_agents.append(agent)
+        
+        return fallback_agents
+
+    def _generate_routing_reasoning(self, strategy: RoutingStrategy, selected_agents: List[str], 
+                                  intent: str, confidence: float) -> str:
+        """Generate human-readable reasoning for the routing decision"""
+        
+        reasoning_parts = [
+            f"Selected {strategy.value} strategy for {intent} intent"
+        ]
+        
+        if confidence < self.config.routing_confidence_threshold:
+            reasoning_parts.append(f"Low confidence ({confidence:.2f}) suggests multiple agent validation")
+        
+        if len(selected_agents) > 1:
+            reasoning_parts.append(f"Using {len(selected_agents)} agents for enhanced quality")
+        
+        if strategy == RoutingStrategy.SCATTER_GATHER:
+            reasoning_parts.append("High complexity task benefits from diverse perspectives")
+        elif strategy == RoutingStrategy.LOAD_BALANCED:
+            reasoning_parts.append("Load balancing to optimize resource utilization")
+        
+        return "; ".join(reasoning_parts)
+
+    def enhanced_route_task(self, task: Task, intent: str, confidence: float = 1.0) -> Dict[str, Any]:
+        """
+        Enhanced task routing with intelligent decision making and parallel execution
+        """
+        try:
+            # Make routing decision
+            decision = self.make_routing_decision(task, intent, confidence)
+            
+            # For now, use existing routing logic but with enhanced decision metadata
+            # Future enhancement: implement full parallel execution
+            result = self.route_task(task, intent, confidence)
+            
+            # Add routing metadata to result
+            result["routing_decision"] = {
+                "strategy": decision.strategy.value,
+                "selected_agents": decision.selected_agents,
+                "confidence": decision.confidence,
+                "reasoning": decision.reasoning,
+                "expected_execution_time": decision.expected_execution_time
+            }
+            
+            return result
+            
+        except Exception as e:
+            error_msg = f"Error in enhanced task routing: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            log_agent_action(self.name, error_msg)
+            return self._create_error_response(error_msg, task.id)
+
+    def get_routing_analytics(self) -> Dict[str, Any]:
+        """Get comprehensive routing analytics and performance metrics"""
+        
+        with self._lock:
+            analytics = {
+                "routing_decisions": len(self.routing_decisions),
+                "strategy_usage": dict(self.metrics.routing_strategy_usage),
+                "agent_performance": dict(self.metrics.agent_performance_scores),
+                "agent_workload": dict(self.agent_workload),
+                "parallel_executions": self.metrics.parallel_executions,
+                "aggregated_results": self.metrics.aggregated_results,
+                "recent_decisions": [
+                    {
+                        "strategy": d.strategy.value,
+                        "agents": d.selected_agents,
+                        "confidence": d.confidence,
+                        "reasoning": d.reasoning,
+                        "timestamp": d.created_at.isoformat()
+                    }
+                    for d in self.routing_decisions[-10:]  # Last 10 decisions
+                ]
+            }
+        
+        return analytics 
