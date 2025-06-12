@@ -1,6 +1,6 @@
 # Task ID: 7
 # Title: Develop EmailAgent with SMTP Integration
-# Status: pending
+# Status: done
 # Dependencies: 4
 # Priority: medium
 # Description: Implement the EmailAgent as a ToolAgent that interfaces with Flask-Mail to send emails via SMTP.
@@ -143,7 +143,7 @@ VERIFICATION:
 - Email composition and validation tools unaffected
 </info added on 2025-06-12T18:04:04.929Z>
 
-## 3. Email Validation and Tracking [pending]
+## 3. Email Validation and Tracking [done]
 ### Dependencies: 7.2
 ### Description: Develop validation mechanisms and tracking functionality for emails
 ### Details:

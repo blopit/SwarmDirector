@@ -1,0 +1,396 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.10.0, pytest-7.4.3, pluggy-1.6.0 -- /Library/Frameworks/Python.framework/Versions/3.10/bin/python3.10
+cachedir: .pytest_cache
+rootdir: /Users/shrenilpatel/Github/SwarmDirector
+plugins: Faker-20.1.0, cov-4.1.0, asyncio-0.21.1, anyio-4.8.0, dash-3.0.3, mock-3.12.0, env-1.1.1
+asyncio: mode=strict
+collecting ... collected 238 items
+
+tests/test_advanced_relationships.py::test_advanced_relationships PASSED [  0%]
+tests/test_app.py::test_app_creation PASSED                              [  0%]
+tests/test_app.py::test_database_operations PASSED                       [  1%]
+tests/test_app.py::test_routes PASSED                                    [  1%]
+tests/test_app.py::test_crud_api_endpoints PASSED                        [  2%]
+tests/test_app.py::test_dashboard_routes PASSED                          [  2%]
+tests/test_autogen_agent_types.py::TestOrchestrationPattern::test_orchestration_patterns_exist PASSED [  2%]
+tests/test_autogen_agent_types.py::TestConversationConfig::test_default_config PASSED [  3%]
+tests/test_autogen_agent_types.py::TestConversationConfig::test_custom_config PASSED [  3%]
+tests/test_autogen_agent_types.py::TestConversationDirector::test_init PASSED [  4%]
+tests/test_autogen_agent_types.py::TestConversationDirector::test_create_custom_speaker_selection_expertise_based PASSED [  4%]
+tests/test_autogen_agent_types.py::TestConversationDirector::test_create_custom_speaker_selection_round_robin PASSED [  5%]
+tests/test_autogen_agent_types.py::TestConversationDirector::test_create_termination_condition PASSED [  5%]
+tests/test_autogen_agent_types.py::TestAdvancedMultiAgentChain::test_init PASSED [  5%]
+tests/test_autogen_agent_types.py::TestAdvancedMultiAgentChain::test_create_enhanced_group_chat PASSED [  6%]
+tests/test_autogen_agent_types.py::TestAdvancedMultiAgentChain::test_create_enhanced_group_chat_no_agents PASSED [  6%]
+tests/test_autogen_agent_types.py::TestAdvancedMultiAgentChain::test_execute_orchestrated_conversation PASSED [  7%]
+tests/test_autogen_agent_types.py::TestAdvancedMultiAgentChain::test_get_orchestration_analytics PASSED [  7%]
+tests/test_autogen_agent_types.py::TestOrchestrationWorkflow::test_create_research_workflow PASSED [  7%]
+tests/test_autogen_agent_types.py::TestOrchestrationWorkflow::test_create_development_workflow PASSED [  8%]
+tests/test_autogen_agent_types.py::TestOrchestrationWorkflow::test_create_creative_workflow PASSED [  8%]
+tests/test_autogen_agent_types.py::TestOrchestrationWorkflow::test_create_analysis_workflow PASSED [  9%]
+tests/test_autogen_agent_types.py::TestOrchestrationFunctions::test_create_orchestrated_conversation PASSED [  9%]
+tests/test_autogen_agent_types.py::TestOrchestrationFunctions::test_create_orchestrated_conversation_error PASSED [ 10%]
+tests/test_autogen_agent_types.py::TestAutoGenConfig::test_default_config PASSED [ 10%]
+tests/test_autogen_agent_types.py::TestAutoGenConfig::test_custom_config PASSED [ 10%]
+tests/test_autogen_agent_types.py::TestAutoGenConfig::test_to_llm_config PASSED [ 11%]
+tests/test_autogen_agent_types.py::TestSpecializedAgents::test_data_analyst_agent PASSED [ 11%]
+tests/test_autogen_agent_types.py::TestSpecializedAgents::test_task_coordinator_agent PASSED [ 12%]
+tests/test_autogen_agent_types.py::TestSpecializedAgents::test_research_agent PASSED [ 12%]
+tests/test_autogen_agent_types.py::TestSpecializedAgents::test_creative_writer_agent PASSED [ 13%]
+tests/test_autogen_agent_types.py::TestSpecializedAgents::test_problem_solver_agent PASSED [ 13%]
+tests/test_autogen_agent_types.py::TestSpecializedAgents::test_code_review_agent PASSED [ 13%]
+tests/test_autogen_agent_types.py::TestAutoGenAgentFactory::test_create_chat_agent PASSED [ 14%]
+tests/test_autogen_agent_types.py::TestAutoGenAgentFactory::test_create_tool_agent PASSED [ 14%]
+tests/test_autogen_agent_types.py::TestAutoGenAgentFactory::test_create_specialized_agent PASSED [ 15%]
+tests/test_autogen_agent_types.py::TestAutoGenAgentFactory::test_create_specialized_agent_invalid_type PASSED [ 15%]
+tests/test_autogen_agent_types.py::TestAutoGenAgentFactory::test_create_agent_chain PASSED [ 15%]
+tests/test_autogen_agent_types.py::TestMultiAgentChain::test_add_agent PASSED [ 16%]
+tests/test_autogen_agent_types.py::TestMultiAgentChain::test_create_group_chat PASSED [ 16%]
+tests/test_autogen_agent_types.py::TestMultiAgentChain::test_create_group_chat_no_agents PASSED [ 17%]
+tests/test_autogen_agent_types.py::TestMultiAgentChain::test_get_chain_stats PASSED [ 17%]
+tests/test_autogen_agent_types.py::TestUtilityFunctions::test_create_specialized_agents PASSED [ 18%]
+tests/test_autogen_agent_types.py::TestUtilityFunctions::test_create_specialized_agents_with_config PASSED [ 18%]
+tests/test_autogen_agent_types.py::TestIntegrationScenarios::test_mixed_agent_chain_scenario PASSED [ 18%]
+tests/test_autogen_agent_types.py::TestIntegrationScenarios::test_agent_expertise_mapping PASSED [ 19%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_initialization PASSED [ 19%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_determine_communication_type_email PASSED [ 20%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_determine_communication_type_review PASSED [ 20%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_determine_communication_type_content_creation PASSED [ 21%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_create_initial_draft_with_content PASSED [ 21%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_create_initial_draft_from_task PASSED [ 21%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_conduct_parallel_review_success PASSED [ 22%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_analyze_consensus_with_reviews PASSED [ 22%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_analyze_consensus_empty_reviews PASSED [ 23%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_apply_consensus_improvements PASSED [ 23%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_can_handle_task_email PASSED [ 23%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_can_handle_task_communication PASSED [ 24%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_can_handle_task_other PASSED [ 24%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_handle_general_communication_with_email_agent PASSED [ 25%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_handle_general_communication_direct PASSED [ 25%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_execute_task_email_workflow PASSED [ 26%]
+tests/test_communications_dept.py::TestCommunicationsDept::test_execute_task_error_handling PASSED [ 26%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_analytics_with_error_messages PASSED [ 26%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_analytics_with_no_messages PASSED [ 27%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_analyze_conversation_creates_analytics PASSED [ 27%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_api_analytics_summary_endpoint PASSED [ 28%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_api_conversation_analytics_endpoint PASSED [ 28%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_api_conversation_detail_endpoint PASSED [ 28%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_api_regenerate_analytics_endpoint PASSED [ 29%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_autogen_metrics_calculation PASSED [ 29%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_content_metrics_calculation PASSED [ 30%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_conversation_completion_metrics PASSED [ 30%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_conversation_insights_generation PASSED [ 31%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_conversation_session_manager_integration PASSED [ 31%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_participation_metrics_calculation PASSED [ 31%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_quality_metrics_calculation PASSED [ 32%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_sentiment_analysis PASSED [ 32%]
+tests/test_conversation_analytics.py::TestConversationAnalytics::test_timing_metrics_calculation PASSED [ 33%]
+tests/test_conversation_tracking_integration.py::TestConversationTrackingIntegration::test_analytics_dashboard_functionality PASSED [ 33%]
+tests/test_conversation_tracking_integration.py::TestConversationTrackingIntegration::test_complete_conversation_workflow PASSED [ 34%]
+tests/test_database_utils.py::test_database_manager PASSED               [ 34%]
+tests/test_database_utils.py::test_migration_manager PASSED              [ 34%]
+tests/test_database_utils.py::test_performance_monitoring PASSED         [ 35%]
+tests/test_diff_generator.py::TestDiffGenerator::test_initialization_default_config PASSED [ 35%]
+tests/test_diff_generator.py::TestDiffGenerator::test_initialization_custom_config PASSED [ 36%]
+tests/test_diff_generator.py::TestDiffGenerator::test_generate_diff_empty_original PASSED [ 36%]
+tests/test_diff_generator.py::TestDiffGenerator::test_generate_diff_from_suggestions PASSED [ 36%]
+tests/test_diff_generator.py::TestDiffGenerator::test_generate_diff_text_comparison PASSED [ 37%]
+tests/test_diff_generator.py::TestDiffGenerator::test_target_punctuation_issues PASSED [ 37%]
+tests/test_diff_generator.py::TestDiffGenerator::test_target_structure_issues PASSED [ 38%]
+tests/test_diff_generator.py::TestDiffGenerator::test_target_organization_issues PASSED [ 38%]
+tests/test_diff_generator.py::TestDiffGenerator::test_word_level_diff PASSED [ 39%]
+tests/test_diff_generator.py::TestDiffGenerator::test_confidence_calculation PASSED [ 39%]
+tests/test_diff_generator.py::TestDiffGenerator::test_diff_sorting_and_limiting PASSED [ 39%]
+tests/test_diff_generator.py::TestDiffGenerator::test_error_handling PASSED [ 40%]
+tests/test_diff_generator.py::TestDiffGenerator::test_informational_diff PASSED [ 40%]
+tests/test_diff_generator.py::TestDiffGenerator::test_config_update PASSED [ 41%]
+tests/test_diff_generator.py::TestDiffGenerator::test_get_config PASSED  [ 41%]
+tests/test_diff_generator.py::TestDiffGenerator::test_suggestion_type_determination PASSED [ 42%]
+tests/test_diff_generator.py::TestDiffGenerator::test_context_preservation PASSED [ 42%]
+tests/test_director_agent.py::TestDirectorAgent::test_intent_classification_communications PASSED [ 42%]
+tests/test_director_agent.py::TestDirectorAgent::test_intent_classification_analysis PASSED [ 43%]
+tests/test_director_agent.py::TestDirectorAgent::test_intent_classification_coordination PASSED [ 43%]
+tests/test_director_agent.py::TestDirectorAgent::test_intent_classification_default PASSED [ 44%]
+tests/test_director_agent.py::TestDirectorAgent::test_direct_task_handling PASSED [ 44%]
+tests/test_director_agent.py::TestDirectorAgent::test_routing_stats_update PASSED [ 44%]
+tests/test_director_agent.py::TestTaskEndpoint::test_task_endpoint_valid_request PASSED [ 45%]
+tests/test_director_agent.py::TestTaskEndpoint::test_task_endpoint_missing_type PASSED [ 45%]
+tests/test_director_agent.py::TestTaskEndpoint::test_task_endpoint_invalid_json PASSED [ 46%]
+tests/test_director_agent.py::TestTaskEndpoint::test_task_endpoint_missing_content_type PASSED [ 46%]
+tests/test_director_agent.py::TestTaskEndpoint::test_task_endpoint_empty_body PASSED [ 47%]
+tests/test_director_agent.py::TestTaskEndpoint::test_task_endpoint_intent_classification FAILED [ 47%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_initialization PASSED [ 47%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_can_handle_task_review PASSED [ 48%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_can_handle_task_draft_review PASSED [ 48%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_can_handle_task_other PASSED [ 49%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_analyze_content_good_length PASSED [ 49%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_analyze_content_too_short PASSED [ 50%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_analyze_content_too_long PASSED [ 50%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_analyze_structure_multiple_paragraphs PASSED [ 50%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_analyze_structure_single_paragraph PASSED [ 51%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_analyze_structure_with_headers PASSED [ 51%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_analyze_style_proper_ending PASSED [ 52%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_analyze_style_no_proper_ending PASSED [ 52%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_analyze_style_multiple_sentences PASSED [ 52%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_analyze_technical_email_type PASSED [ 53%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_analyze_technical_technical_type PASSED [ 53%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_review_draft_comprehensive PASSED [ 54%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_get_recommendation_excellent PASSED [ 54%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_get_recommendation_good PASSED [ 55%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_get_recommendation_acceptable PASSED [ 55%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_get_recommendation_needs_improvement PASSED [ 55%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_get_recommendation_major_revision PASSED [ 56%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_generate_suggestions PASSED [ 56%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_generate_json_diff PASSED [ 57%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_execute_task_success PASSED [ 57%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_execute_task_no_content PASSED [ 57%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_execute_task_exception_handling PASSED [ 58%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_create_or_update_draft_success PASSED [ 58%]
+tests/test_draft_review_agent.py::TestDraftReviewAgent::test_create_or_update_draft_error PASSED [ 59%]
+tests/test_email_agent.py::TestEmailAgent::test_initialization FAILED    [ 59%]
+tests/test_email_agent.py::TestEmailAgent::test_can_handle_task_email PASSED [ 60%]
+tests/test_email_agent.py::TestEmailAgent::test_can_handle_task_send_email PASSED [ 60%]
+tests/test_email_agent.py::TestEmailAgent::test_can_handle_task_other FAILED [ 60%]
+tests/test_email_agent.py::TestEmailAgent::test_validate_email_data_valid FAILED [ 61%]
+tests/test_email_agent.py::TestEmailAgent::test_validate_email_data_missing_fields PASSED [ 61%]
+tests/test_email_agent.py::TestEmailAgent::test_validate_email_data_invalid_email PASSED [ 62%]
+tests/test_email_agent.py::TestEmailAgent::test_validate_email_data_warnings PASSED [ 62%]
+tests/test_email_agent.py::TestEmailAgent::test_is_valid_email PASSED    [ 63%]
+tests/test_email_agent.py::TestEmailAgent::test_compose_from_template_welcome PASSED [ 63%]
+tests/test_email_agent.py::TestEmailAgent::test_compose_from_template_unknown PASSED [ 63%]
+tests/test_email_agent.py::TestEmailAgent::test_compose_from_draft PASSED [ 64%]
+tests/test_email_agent.py::TestEmailAgent::test_compose_from_draft_not_found PASSED [ 64%]
+tests/test_email_agent.py::TestEmailAgent::test_send_email_success PASSED [ 65%]
+tests/test_email_agent.py::TestEmailAgent::test_send_email_failure PASSED [ 65%]
+tests/test_email_agent.py::TestEmailAgent::test_send_email_validation_failure PASSED [ 65%]
+tests/test_email_agent.py::TestEmailAgent::test_compose_email_manual PASSED [ 66%]
+tests/test_email_agent.py::TestEmailAgent::test_validate_email_operation PASSED [ 66%]
+tests/test_email_agent.py::TestEmailAgent::test_execute_task_unknown_operation PASSED [ 67%]
+tests/test_email_agent.py::TestEmailAgent::test_execute_task_exception_handling PASSED [ 67%]
+tests/test_email_agent.py::TestEmailAgent::test_get_email_templates PASSED [ 68%]
+tests/test_email_agent.py::TestEmailAgent::test_add_email_template PASSED [ 68%]
+tests/test_email_agent_flask_mail_integration.py::TestEmailAgentFlaskMailIntegration::test_flask_mail_initialization PASSED [ 68%]
+tests/test_email_agent_flask_mail_integration.py::TestEmailAgentFlaskMailIntegration::test_send_via_flask_mail_success FAILED [ 69%]
+🧹 Cleaning up test artifacts...
+✅ Test artifact cleanup completed
+
+
+=================================== FAILURES ===================================
+__________ TestTaskEndpoint.test_task_endpoint_intent_classification ___________
+
+self = <tests.test_director_agent.TestTaskEndpoint object at 0x11cfe9a80>
+client = <FlaskClient <Flask 'swarm_director.app'>>
+
+    def test_task_endpoint_intent_classification(self, client):
+        """Test that different task types are classified correctly"""
+        test_cases = [
+            ('email', 'communications'),
+            ('analysis', 'analysis'),
+            ('coordinate', 'coordination'),
+            ('manage', 'coordination')
+        ]
+    
+        for task_type, expected_dept in test_cases:
+            payload = {
+                'type': task_type,
+                'title': f'Test {task_type} task',
+                'description': f'A task involving {task_type}'
+            }
+    
+            response = client.post('/task',
+                data=json.dumps(payload),
+                content_type='application/json'
+            )
+    
+            assert response.status_code == 201
+            data = response.get_json()
+            # Check for routing_result in the nested data structure
+            routing_result = data['data']['routing_result']
+>           assert routing_result['routed_to'] == expected_dept
+E           KeyError: 'routed_to'
+
+tests/test_director_agent.py:259: KeyError
+----------------------------- Captured stderr call -----------------------------
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,933 - swarm_director.app - INFO - Task submitted: task_1_20250612_181347, type: email
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+2025-06-12 14:13:47,999 - swarm_director.app - INFO - Task submitted: task_2_20250612_181347, type: analysis
+------------------------------ Captured log call -------------------------------
+ERROR    swarm_director.agents.director:director.py:435 Error initializing department agents: 'DirectorAgent' object has no attribute 'routing_stats'
+INFO     swarm_director.app:app.py:250 Task submitted: task_1_20250612_181347, type: email
+ERROR    swarm_director.agents.director:director.py:435 Error initializing department agents: 'DirectorAgent' object has no attribute 'routing_stats'
+INFO     swarm_director.app:app.py:250 Task submitted: task_2_20250612_181347, type: analysis
+______________________ TestEmailAgent.test_initialization ______________________
+
+self = <tests.test_email_agent.TestEmailAgent object at 0x11d00f160>
+mock_agent = <Mock id='4791042160'>
+
+    def test_initialization(self, mock_agent):
+        """Test EmailAgent initialization"""
+        agent = EmailAgent(mock_agent)
+    
+>       assert agent.name == "EmailAgent"
+E       AssertionError: assert <Mock id='4791042160'> == 'EmailAgent'
+E        +  where <Mock id='4791042160'> = <swarm_director.agents.email_agent.EmailAgent object at 0x11d919330>.name
+
+tests/test_email_agent.py:56: AssertionError
+__________________ TestEmailAgent.test_can_handle_task_other ___________________
+
+self = <tests.test_email_agent.TestEmailAgent object at 0x11d00f550>
+email_agent = <swarm_director.agents.email_agent.EmailAgent object at 0x11e20d8d0>
+sample_task = <Mock id='4800445312'>
+
+    def test_can_handle_task_other(self, email_agent, sample_task):
+        """Test task handling for non-email type"""
+        sample_task.type = "analysis"
+>       assert email_agent.can_handle_task(sample_task) == False
+E       AssertionError: assert True == False
+E        +  where True = <bound method EmailAgent.can_handle_task of <swarm_director.agents.email_agent.EmailAgent object at 0x11e20d8d0>>(<Mock id='4800445312'>)
+E        +    where <bound method EmailAgent.can_handle_task of <swarm_director.agents.email_agent.EmailAgent object at 0x11e20d8d0>> = <swarm_director.agents.email_agent.EmailAgent object at 0x11e20d8d0>.can_handle_task
+
+tests/test_email_agent.py:72: AssertionError
+________________ TestEmailAgent.test_validate_email_data_valid _________________
+
+self = <tests.test_email_agent.TestEmailAgent object at 0x11d00f760>
+email_agent = <swarm_director.agents.email_agent.EmailAgent object at 0x11d9aa410>
+
+    def test_validate_email_data_valid(self, email_agent):
+        """Test email data validation with valid data"""
+        email_data = {
+            'recipient': 'test@example.com',
+            'subject': 'Test Subject',
+            'body': 'Test body content',
+            'sender': 'sender@example.com'
+        }
+    
+        result = email_agent._validate_email_data(email_data)
+    
+        assert result['valid'] == True
+        assert result['errors'] == []
+>       assert len(result['warnings']) == 0
+E       AssertionError: assert 1 == 0
+E        +  where 1 = len(['MX check failed for example.com: The DNS query name does not exist: example.com.'])
+
+tests/test_email_agent.py:87: AssertionError
+_____ TestEmailAgentFlaskMailIntegration.test_send_via_flask_mail_success ______
+
+args = (<tests.test_email_agent_flask_mail_integration.TestEmailAgentFlaskMailIntegration object at 0x11d05d3c0>,)
+keywargs = {'app': <Flask 'tests.test_email_agent_flask_mail_integration'>, 'email_agent': <src.swarm_director.agents.email_agent.EmailAgent object at 0x11e6736a0>}
+
+    @wraps(func)
+    def patched(*args, **keywargs):
+>       with self.decoration_helper(patched,
+                                    args,
+                                    keywargs) as (newargs, newkeywargs):
+
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/mock.py:1367: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/contextlib.py:135: in __enter__
+    return next(self.gen)
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/mock.py:1349: in decoration_helper
+    arg = exit_stack.enter_context(patching)
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/contextlib.py:492: in enter_context
+    result = _cm_type.__enter__(cm)
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/mock.py:1438: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x11d05ece0>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'src.swarm_director.agents.email_agent' from '/Users/shrenilpatel/Github/SwarmDirector/src/swarm_director/agents/email_agent.py'> does not have the attribute 'Mail'
+
+/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/mock.py:1411: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_director_agent.py::TestTaskEndpoint::test_task_endpoint_intent_classification
+FAILED tests/test_email_agent.py::TestEmailAgent::test_initialization - Asser...
+FAILED tests/test_email_agent.py::TestEmailAgent::test_can_handle_task_other
+FAILED tests/test_email_agent.py::TestEmailAgent::test_validate_email_data_valid
+FAILED tests/test_email_agent_flask_mail_integration.py::TestEmailAgentFlaskMailIntegration::test_send_via_flask_mail_success
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 5 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+============ 5 failed, 160 passed, 21 warnings in 70.40s (0:01:10) =============
+🧹 Performing comprehensive test cleanup...
