@@ -75,21 +75,15 @@ def setup_logging(app):
     app.logger.addHandler(console_handler)
 
 def register_error_handlers(app):
-    """Register error handling middleware"""
+    """Register enhanced error handling middleware"""
+    from .utils.error_handler import ErrorHandler
     
-    @app.errorhandler(404)
-    def not_found_error(error):
-        return jsonify({'error': 'Resource not found'}), 404
+    # Initialize enhanced error handler
+    error_handler = ErrorHandler()
+    error_handler.init_app(app)
     
-    @app.errorhandler(500)
-    def internal_error(error):
-        db.session.rollback()
-        app.logger.error(f'Server Error: {error}')
-        return jsonify({'error': 'Internal server error'}), 500
-    
-    @app.errorhandler(400)
-    def bad_request_error(error):
-        return jsonify({'error': 'Bad request'}), 400
+    # Store reference in app extensions
+    app.extensions['error_handler'] = error_handler
 
 def register_routes(app):
     """Register application routes"""
@@ -97,14 +91,18 @@ def register_routes(app):
     @app.route('/')
     def index():
         """Health check endpoint"""
-        return jsonify({
-            'message': 'SwarmDirector API is running',
-            'status': 'healthy'
-        })
+        from .utils.response_formatter import ResponseFormatter
+        return ResponseFormatter.success(
+            data={
+                'message': 'SwarmDirector API is running',
+                'status': 'healthy'
+            }
+        )
     
     @app.route('/health')
     def health_check():
         """Detailed health check endpoint"""
+        from .utils.response_formatter import ResponseFormatter
         try:
             # Test database connection using proper SQLAlchemy syntax
             db.session.execute(text('SELECT 1'))
@@ -112,20 +110,26 @@ def register_routes(app):
         except Exception as e:
             db_status = f'error: {str(e)}'
         
-        return jsonify({
-            'status': 'healthy',
-            'database': db_status,
-            'version': '1.0.0'
-        })
+        return ResponseFormatter.success(
+            data={
+                'status': 'healthy',
+                'database': db_status,
+                'version': '1.0.0'
+            }
+        )
     
     @app.route('/task', methods=['POST'])
     def submit_task():
         """Enhanced task submission endpoint with comprehensive validation"""
         try:
-            # Import validation utilities
+            # Import validation utilities and response formatter
             from .utils.validation import validate_request, RequestValidator
             from .utils.rate_limiter import api_rate_limit
             from .schemas.task_schemas import get_schema_for_task_type
+            from .utils.response_formatter import ResponseFormatter
+            from .utils.error_handler import ValidationError, RateLimitError, DatabaseError, SwarmDirectorError
+            from .utils.rate_limiter import rate_limiter, get_client_identifier
+            from jsonschema import validate, ValidationError as JsonSchemaValidationError
             
             # Apply comprehensive validation
             try:
@@ -137,56 +141,40 @@ def register_routes(app):
                 
                 # 3. Basic structure validation
                 if not data or 'type' not in data:
-                    return jsonify({
-                        'status': 'error',
-                        'error': 'Field "type" is required',
-                        'error_code': 'REQUIRED_FIELD'
-                    }), 400
+                    raise ValidationError('Field "type" is required', field='type')
                 
                 # 4. Get task-specific schema and validate
                 task_type = data.get('type')
                 schema = get_schema_for_task_type(task_type)
                 
                 # Apply schema validation
-                from jsonschema import validate, ValidationError as JsonSchemaValidationError
                 try:
                     validate(instance=data, schema=schema)
                 except JsonSchemaValidationError as e:
                     field_path = ".".join(str(p) for p in e.absolute_path) if e.absolute_path else "root"
-                    return jsonify({
-                        'status': 'error',
-                        'error': f"Schema validation failed at '{field_path}': {e.message}",
-                        'error_code': 'SCHEMA_VALIDATION_ERROR',
-                        'field': field_path
-                    }), 400
+                    raise ValidationError(
+                        f"Schema validation failed: {e.message}",
+                        field=field_path
+                    )
                 
                 # 5. Sanitize all input data
                 data = RequestValidator.sanitize_input(data)
                 
                 # 6. Rate limiting check (simulated - would normally use decorator)
-                from .utils.rate_limiter import rate_limiter, get_client_identifier
                 client_id = get_client_identifier()
                 is_allowed, rate_info = rate_limiter.is_allowed(f"ip:{client_id}", 100, 3600)
                 
                 if not is_allowed:
-                    response = jsonify({
-                        'status': 'error',
-                        'error': 'Rate limit exceeded',
-                        'error_code': 'RATE_LIMIT_EXCEEDED',
-                        'rate_limit': rate_info
-                    })
-                    response.headers['X-RateLimit-Limit'] = str(rate_info['limit'])
-                    response.headers['X-RateLimit-Remaining'] = str(rate_info['remaining'])
-                    response.headers['X-RateLimit-Reset'] = str(rate_info['reset'])
-                    response.headers['Retry-After'] = str(rate_info['retry_after'])
-                    return response, 429
+                    raise RateLimitError(
+                        'Rate limit exceeded',
+                        retry_after=rate_info.get('retry_after')
+                    )
                 
+            except (ValidationError, RateLimitError):
+                # Re-raise custom errors to be handled by error handlers
+                raise
             except Exception as validation_error:
-                return jsonify({
-                    'status': 'error',
-                    'error': str(validation_error),
-                    'error_code': 'VALIDATION_ERROR'
-                }), 400
+                raise ValidationError(str(validation_error))
             
             # Extract task details
             task_type = data.get('type')
@@ -202,69 +190,92 @@ def register_routes(app):
             
             # Create task in database
             from datetime import datetime
-            task = Task(
-                title=task_title,
-                description=task_description,
-                status=TaskStatus.PENDING,
-                priority=getattr(TaskPriority, task_priority.upper(), TaskPriority.MEDIUM),
-                input_data={
-                    'type': task_type,
-                    'args': task_args,
-                    'submitted_at': datetime.utcnow().isoformat()
-                }
-            )
-            task.save()
+            try:
+                task = Task(
+                    title=task_title,
+                    description=task_description,
+                    status=TaskStatus.PENDING,
+                    priority=getattr(TaskPriority, task_priority.upper(), TaskPriority.MEDIUM),
+                    input_data={
+                        'type': task_type,
+                        'args': task_args,
+                        'submitted_at': datetime.utcnow().isoformat()
+                    }
+                )
+                task.save()
+            except Exception as db_error:
+                raise DatabaseError(
+                    f"Failed to create task: {str(db_error)}",
+                    details={'operation': 'task_creation'}
+                )
             
             # Generate unique task_id for response
             task_id = f"task_{task.id}_{task.created_at.strftime('%Y%m%d_%H%M%S')}"
             
             # Get or create DirectorAgent
-            director_db = Agent.query.filter_by(
-                agent_type=AgentType.SUPERVISOR,
-                name='DirectorAgent'
-            ).first()
-            
-            if not director_db:
-                # Create DirectorAgent if it doesn't exist
-                director_db = Agent(
-                    name='DirectorAgent',
+            try:
+                director_db = Agent.query.filter_by(
                     agent_type=AgentType.SUPERVISOR,
-                    capabilities=['routing', 'intent_classification', 'task_delegation']
+                    name='DirectorAgent'
+                ).first()
+                
+                if not director_db:
+                    # Create DirectorAgent if it doesn't exist
+                    director_db = Agent(
+                        name='DirectorAgent',
+                        agent_type=AgentType.SUPERVISOR,
+                        capabilities=['routing', 'intent_classification', 'task_delegation']
+                    )
+                    director_db.save()
+            except Exception as db_error:
+                raise DatabaseError(
+                    f"Failed to access or create DirectorAgent: {str(db_error)}",
+                    details={'operation': 'agent_access'}
                 )
-                director_db.save()
             
             director = DirectorAgent(director_db)
             
             # Process task through DirectorAgent
-            result = director.execute_task(task)
+            try:
+                result = director.execute_task(task)
+            except Exception as execution_error:
+                raise SwarmDirectorError(
+                    f"Task execution failed: {str(execution_error)}",
+                    error_code='TASK_EXECUTION_ERROR',
+                    status_code=500,
+                    details={'task_id': task_id, 'task_type': task_type}
+                )
             
             # Log the task submission
             app.logger.info(f'Task submitted: {task_id}, type: {task_type}')
             
             # Return standardized response
-            return jsonify({
-                'status': 'success',
-                'task_id': task_id,
-                'message': 'Task submitted successfully',
-                'routing_result': result,
-                'task_details': {
-                    'id': task.id,
-                    'title': task.title,
-                    'type': task_type,
-                    'status': task.status.value,
-                    'created_at': task.created_at.isoformat()
-                }
-            }), 201
-            
+            return ResponseFormatter.success(
+                data={
+                    'task_id': task_id,
+                    'message': 'Task submitted successfully',
+                    'routing_result': result,
+                    'task_details': {
+                        'id': task.id,
+                        'title': task.title,
+                        'type': task_type,
+                        'status': task.status.value,
+                        'created_at': task.created_at.isoformat()
+                    }
+                },
+                status_code=201
+            )
+        
+        except (ValidationError, RateLimitError, DatabaseError, SwarmDirectorError):
+            # Re-raise SwarmDirector errors to be handled by the error handlers
+            raise
         except Exception as e:
             # Log the error
             app.logger.error(f'Error processing task submission: {str(e)}')
             
-            return jsonify({
-                'status': 'error',
-                'error': 'Internal server error',
-                'message': 'Failed to process task submission'
-            }), 500
+            return ResponseFormatter.internal_error(
+                message='Failed to process task submission'
+            )
 
     # ============================================================================
     # AGENTS CRUD API ENDPOINTS
@@ -273,17 +284,21 @@ def register_routes(app):
     @app.route('/api/agents', methods=['GET'])
     def get_agents():
         """Get all agents"""
+        from .utils.response_formatter import ResponseFormatter
         try:
             from .models import Agent
             agents = Agent.query.all()
-            return jsonify({
-                'status': 'success',
-                'agents': [agent.to_dict() for agent in agents],
-                'count': len(agents)
-            })
+            return ResponseFormatter.success(
+                data={
+                    'agents': [agent.to_dict() for agent in agents],
+                    'count': len(agents)
+                }
+            )
         except Exception as e:
             app.logger.error(f'Error fetching agents: {str(e)}')
-            return jsonify({'status': 'error', 'error': str(e)}), 500
+            return ResponseFormatter.internal_error(
+                message='Failed to fetch agents'
+            )
     
     @app.route('/api/agents', methods=['POST'])
     def create_agent():

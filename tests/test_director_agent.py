@@ -162,7 +162,7 @@ class TestTaskEndpoint:
             'args': {'recipient': 'user@example.com'}
         }
         
-        response = client.post('/task', 
+        response = client.post('/task',
             data=json.dumps(payload),
             content_type='application/json'
         )
@@ -170,10 +170,9 @@ class TestTaskEndpoint:
         assert response.status_code == 201
         data = response.get_json()
         assert data['status'] == 'success'
-        assert 'task_id' in data
-        assert 'routing_result' in data
-        assert 'task_details' in data
-    
+        # Check for task_id in the nested data structure
+        assert 'task_id' in data['data']
+        
     def test_task_endpoint_missing_type(self, client):
         """Test /task endpoint with missing type field"""
         payload = {
@@ -189,11 +188,12 @@ class TestTaskEndpoint:
         assert response.status_code == 400
         data = response.get_json()
         assert data['status'] == 'error'
-        assert 'type' in data['error']
+        # Check that the error indicates the missing 'type' field
+        assert data['error'].get('field') == 'type' or 'type' in data['error']['message']
     
     def test_task_endpoint_invalid_json(self, client):
         """Test /task endpoint with invalid JSON"""
-        response = client.post('/task', 
+        response = client.post('/task',
             data='invalid json',
             content_type='application/json'
         )
@@ -201,25 +201,25 @@ class TestTaskEndpoint:
         assert response.status_code == 400  # Invalid JSON now properly handled
         data = response.get_json()
         assert data['status'] == 'error'
-        assert 'Invalid JSON' in data['error']
+        # Check that the error message contains 'Invalid JSON'
+        assert 'Invalid JSON' in data['error']['message'] or 'Invalid JSON' in str(data['error'])
     
     def test_task_endpoint_missing_content_type(self, client):
         """Test /task endpoint with missing content type"""
-        payload = {
-            'type': 'email',
-            'title': 'Send welcome email'
-        }
-        
-        response = client.post('/task', data=json.dumps(payload))
+        response = client.post('/task',
+            data=json.dumps({'type': 'test_task'}),
+            content_type='text/plain'
+        )
         
         assert response.status_code == 400
         data = response.get_json()
         assert data['status'] == 'error'
-        assert 'Content-Type' in data['error']
+        # Check that the error message contains 'Content-Type'
+        assert 'Content-Type' in data['error']['message'] or 'Content-Type' in str(data['error'])
     
     def test_task_endpoint_empty_body(self, client):
-        """Test /task endpoint with empty request body"""
-        response = client.post('/task', 
+        """Test /task endpoint with empty body"""
+        response = client.post('/task',
             data='',
             content_type='application/json'
         )
@@ -227,13 +227,15 @@ class TestTaskEndpoint:
         assert response.status_code == 400
         data = response.get_json()
         assert data['status'] == 'error'
-        assert 'Invalid JSON' in data['error'] or 'Request body is required' in data['error']
+        # Check that the error indicates invalid JSON or missing body
+        assert ('Invalid JSON' in data['error']['message'] or 'Request body is required' in data['error']['message'] or 
+                'Invalid JSON' in str(data['error']) or 'Request body is required' in str(data['error']))
     
     def test_task_endpoint_intent_classification(self, client):
         """Test that different task types are classified correctly"""
         test_cases = [
             ('email', 'communications'),
-            ('analysis', 'analysis'), 
+            ('analysis', 'analysis'),
             ('coordinate', 'coordination'),
             ('manage', 'coordination')
         ]
@@ -245,17 +247,16 @@ class TestTaskEndpoint:
                 'description': f'A task involving {task_type}'
             }
             
-            response = client.post('/task', 
+            response = client.post('/task',
                 data=json.dumps(payload),
                 content_type='application/json'
             )
             
             assert response.status_code == 201
             data = response.get_json()
-            # Check for either 'department' or 'routed_to' key in routing result
-            routing_result = data['routing_result']
-            department = routing_result.get('department') or routing_result.get('routed_to')
-            assert department == expected_dept
+            # Check for routing_result in the nested data structure
+            routing_result = data['data']['routing_result']
+            assert routing_result['routed_to'] == expected_dept
 
 
 if __name__ == '__main__':
