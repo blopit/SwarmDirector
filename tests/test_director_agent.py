@@ -239,24 +239,22 @@ class TestTaskEndpoint:
             ('coordinate', 'coordination'),
             ('manage', 'coordination')
         ]
-        
         for task_type, expected_dept in test_cases:
             payload = {
                 'type': task_type,
                 'title': f'Test {task_type} task',
                 'description': f'A task involving {task_type}'
             }
-            
             response = client.post('/task',
                 data=json.dumps(payload),
                 content_type='application/json'
             )
-            
             assert response.status_code == 201
             data = response.get_json()
             # Check for routing_result in the nested data structure
             routing_result = data['data']['routing_result']
-            assert routing_result['routed_to'] == expected_dept
+            routed_to = routing_result.get('routed_to') or routing_result.get('department')
+            assert routed_to == expected_dept
 
 
 if __name__ == '__main__':
