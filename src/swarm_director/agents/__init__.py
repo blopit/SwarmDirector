@@ -10,6 +10,7 @@ from .director import DirectorAgent
 from .draft_review_agent import DraftReviewAgent
 from .email_agent import EmailAgent
 from .communications_dept import CommunicationsDept
+from .core_communication_agent import CoreCommunicationAgent
 
 __all__ = [
     'BaseAgent',
@@ -18,5 +19,6 @@ __all__ = [
     'DirectorAgent',
     'DraftReviewAgent',
     'EmailAgent',
-    'CommunicationsDept'
+    'CommunicationsDept',
+    'CoreCommunicationAgent'
 ]
