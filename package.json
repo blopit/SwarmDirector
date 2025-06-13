@@ -1,0 +1,33 @@
+{
+  "name": "swarmdirector",
+  "version": "1.0.0",
+  "description": "**A comprehensive, three-tier AI-agent framework for task orchestration and high-accuracy content delivery.**",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "node test-runner.js",
+    "test:playwright": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:ui": "npx playwright test --ui",
+    "test:debug": "npx playwright test --debug",
+    "test:report": "npx playwright show-report"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blopit/SwarmDirector.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/blopit/SwarmDirector/issues"
+  },
+  "homepage": "https://github.com/blopit/SwarmDirector#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.53.0"
+  }
+}

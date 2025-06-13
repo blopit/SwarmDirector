@@ -51,12 +51,12 @@ def main():
             print("  • WebSocket status: http://localhost:5000/api/websocket/status")
             print("=" * 50)
             # Run with SocketIO support
-            socketio.run(app, host=host, port=port, debug=debug)
+            socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
         else:
             print("⚠️  WebSocket support not available, running without streaming")
             print("=" * 50)
             # Run regular Flask application
-            app.run(host=host, port=port, debug=debug)
+            app.run(host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
     except KeyboardInterrupt:
         print("\n👋 SwarmDirector stopped by user")
     except Exception as e:

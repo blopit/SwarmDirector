@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwarmDirector Chat</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        
+        /* Custom scrollbar for activity log */
+        .activity-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .activity-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+        .activity-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .activity-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        /* Message animations */
+        .message-enter {
+            animation: messageSlideIn 0.3s ease-out;
+        }
+        
+        @keyframes messageSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Status indicator pulse */
+        .status-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        /* Activity log highlight */
+        .activity-highlight {
+            animation: highlight 0.5s ease-out;
+        }
+        
+        @keyframes highlight {
+            0% { background-color: #fef3c7; }
+            100% { background-color: transparent; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans" x-data="chatApp()" x-init="init()">
+    <div class="h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-4 shadow-lg">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-semibold">SwarmDirector Chat</h1>
+                        <p class="text-sm text-white/80">AI Agent System</p>
+                    </div>
+                </div>
+                
+                <!-- Connection Status -->
+                <div class="flex items-center space-x-2">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 rounded-full" 
+                             :class="connectionStatus === 'connected' ? 'bg-green-400 status-pulse' : 
+                                     connectionStatus === 'connecting' ? 'bg-yellow-400 status-pulse' : 
+                                     'bg-red-400'"></div>
+                        <span class="text-sm font-medium" x-text="connectionStatus"></span>
+                    </div>
+                    
+                    <!-- Current Agent -->
+                    <div class="ml-4 px-3 py-1 bg-white/10 rounded-full text-sm" x-show="currentAgent">
+                        Agent: <span class="font-medium" x-text="currentAgent"></span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- Chat Area -->
+            <div class="flex-1 flex flex-col">
+                <!-- Messages Container -->
+                <div class="flex-1 overflow-y-auto p-4 space-y-4" id="messages-container">
+                    <template x-for="message in messages" :key="message.id">
+                        <div class="message-enter" 
+                             :class="message.type === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                            <div :class="message.type === 'user' ? 
+                                        'bg-blue-500 text-white max-w-xs lg:max-w-md px-4 py-2 rounded-lg' : 
+                                        'bg-white border max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow-sm'">
+                                
+                                <!-- Message Header -->
+                                <div class="flex items-center justify-between mb-1" x-show="message.type === 'assistant'">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-xs font-medium text-gray-600" x-text="message.agent || 'Assistant'"></span>
+                                        <div class="w-1 h-1 bg-green-400 rounded-full" x-show="message.processing"></div>
+                                    </div>
+                                    <span class="text-xs text-gray-400" x-text="formatTime(message.timestamp)"></span>
+                                </div>
+                                
+                                <!-- Message Content -->
+                                <div class="text-sm" x-html="formatMessage(message.content)"></div>
+                                
+                                <!-- Processing Indicator -->
+                                <div class="mt-2 flex items-center space-x-2" x-show="message.processing">
+                                    <div class="flex space-x-1">
+                                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                                    </div>
+                                    <span class="text-xs text-gray-500" x-text="message.processingText || 'Processing...'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <!-- Empty State -->
+                    <div class="text-center py-12" x-show="messages.length === 0">
+                        <div class="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-medium text-gray-600 mb-2">Welcome to SwarmDirector</h3>
+                        <p class="text-gray-500">Start a conversation with our AI agent system</p>
+                    </div>
+                </div>
+
+                <!-- Message Input -->
+                <div class="border-t bg-white p-4">
+                    <form @submit.prevent="sendMessage()" class="flex space-x-3">
+                        <input type="text" 
+                               x-model="newMessage" 
+                               placeholder="Type your message..." 
+                               class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               :disabled="!isConnected || isProcessing">
+                        <button type="submit" 
+                                :disabled="!newMessage.trim() || !isConnected || isProcessing"
+                                class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
+                            <span x-show="!isProcessing">Send</span>
+                            <span x-show="isProcessing" class="flex items-center space-x-2">
+                                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>Sending</span>
+                            </span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Activity Panel -->
+            <div class="w-80 border-l bg-gray-50 flex flex-col" x-show="showActivityPanel">
+                <div class="p-4 border-b bg-white">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-semibold text-gray-800">System Activity</h3>
+                        <button @click="showActivityPanel = false" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Activity Log -->
+                <div class="flex-1 overflow-y-auto activity-scroll">
+                    <div class="p-3 space-y-2">
+                        <template x-for="activity in activities" :key="activity.id">
+                            <div class="text-xs p-2 rounded" 
+                                 :class="getActivityClass(activity.type)"
+                                 x-transition:enter="activity-highlight">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-medium" x-text="activity.type"></span>
+                                    <span class="text-gray-500" x-text="formatTime(activity.timestamp)"></span>
+                                </div>
+                                <div x-text="activity.message"></div>
+                                <div x-show="activity.details" class="mt-1 text-gray-600" x-text="activity.details"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Activity Controls -->
+                <div class="p-3 border-t bg-white">
+                    <div class="flex space-x-2">
+                        <button @click="clearActivities()" 
+                                class="text-xs px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">
+                            Clear Log
+                        </button>
+                        <button @click="exportActivities()" 
+                                class="text-xs px-3 py-1 bg-blue-500 text-white hover:bg-blue-600 rounded">
+                            Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Panel Toggle (when hidden) -->
+        <button @click="showActivityPanel = true" 
+                x-show="!showActivityPanel"
+                class="fixed right-4 bottom-20 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+        </button>
+    </div>
+
+    <script>
+        function chatApp() {
+            return {
+                // Connection state
+                socket: null,
+                connectionStatus: 'disconnected',
+                isConnected: false,
+                
+                // Chat state
+                messages: [],
+                newMessage: '',
+                isProcessing: false,
+                currentAgent: null,
+                
+                // Activity tracking
+                activities: [],
+                showActivityPanel: true,
+                
+                // Initialize the app
+                init() {
+                    this.connectSocket();
+                    this.logActivity('system', 'Chat application initialized');
+                },
+                
+                // Socket connection
+                connectSocket() {
+                    this.connectionStatus = 'connecting';
+                    this.logActivity('connection', 'Attempting to connect to SwarmDirector...');
+                    
+                    this.socket = io();
+                    
+                    this.socket.on('connect', () => {
+                        this.connectionStatus = 'connected';
+                        this.isConnected = true;
+                        this.logActivity('connection', 'Connected to SwarmDirector', 'WebSocket connection established');
+                    });
+                    
+                    this.socket.on('disconnect', () => {
+                        this.connectionStatus = 'disconnected';
+                        this.isConnected = false;
+                        this.logActivity('connection', 'Disconnected from SwarmDirector', 'WebSocket connection lost');
+                    });
+                    
+                    this.socket.on('message_response', (data) => {
+                        this.handleResponse(data);
+                    });
+                    
+                    this.socket.on('agent_handoff', (data) => {
+                        this.handleAgentHandoff(data);
+                    });
+                    
+                    this.socket.on('processing_status', (data) => {
+                        this.handleProcessingStatus(data);
+                    });
+                    
+                    this.socket.on('error', (error) => {
+                        this.logActivity('error', 'System error occurred', error.message);
+                    });
+                },
+                
+                // Send message
+                sendMessage() {
+                    if (!this.newMessage.trim() || !this.isConnected) return;
+                    
+                    const message = {
+                        id: Date.now(),
+                        type: 'user',
+                        content: this.newMessage,
+                        timestamp: new Date()
+                    };
+                    
+                    this.messages.push(message);
+                    this.logActivity('message', 'User message sent', `"${this.newMessage}"`);
+                    
+                    // Send to backend
+                    this.socket.emit('send_message', {
+                        message: this.newMessage,
+                        session_id: this.getSessionId()
+                    });
+                    
+                    this.newMessage = '';
+                    this.isProcessing = true;
+                    this.scrollToBottom();
+                },
+                
+                // Handle response from backend
+                handleResponse(data) {
+                    const message = {
+                        id: Date.now(),
+                        type: 'assistant',
+                        content: data.content,
+                        agent: data.agent,
+                        timestamp: new Date(),
+                        processing: false
+                    };
+                    
+                    this.messages.push(message);
+                    this.isProcessing = false;
+                    this.currentAgent = data.agent;
+                    
+                    this.logActivity('message', 'Assistant response received', `From: ${data.agent}`);
+                    this.scrollToBottom();
+                },
+                
+                // Handle agent handoff
+                handleAgentHandoff(data) {
+                    this.currentAgent = data.new_agent;
+                    this.logActivity('handoff', `Agent handoff: ${data.from_agent} → ${data.new_agent}`, data.reason);
+                    
+                    // Add handoff indicator to chat
+                    const handoffMessage = {
+                        id: Date.now(),
+                        type: 'system',
+                        content: `🔄 Transferred to ${data.new_agent}`,
+                        timestamp: new Date()
+                    };
+                    this.messages.push(handoffMessage);
+                    this.scrollToBottom();
+                },
+                
+                // Handle processing status updates
+                handleProcessingStatus(data) {
+                    this.logActivity('processing', data.status, data.details);
+                    
+                    // Update last message if it's processing
+                    const lastMessage = this.messages[this.messages.length - 1];
+                    if (lastMessage && lastMessage.type === 'assistant' && lastMessage.processing) {
+                        lastMessage.processingText = data.status;
+                    }
+                },
+                
+                // Activity logging
+                logActivity(type, message, details = null) {
+                    const activity = {
+                        id: Date.now(),
+                        type: type,
+                        message: message,
+                        details: details,
+                        timestamp: new Date()
+                    };
+                    
+                    this.activities.unshift(activity);
+                    
+                    // Keep only last 100 activities
+                    if (this.activities.length > 100) {
+                        this.activities = this.activities.slice(0, 100);
+                    }
+                },
+                
+                // Utility functions
+                formatTime(timestamp) {
+                    return new Date(timestamp).toLocaleTimeString('en-US', {
+                        hour12: false,
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                },
+                
+                formatMessage(content) {
+                    // Basic markdown-like formatting
+                    return content
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                        .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>')
+                        .replace(/\n/g, '<br>');
+                },
+                
+                getActivityClass(type) {
+                    const classes = {
+                        'system': 'bg-blue-50 border-l-4 border-blue-400',
+                        'connection': 'bg-green-50 border-l-4 border-green-400',
+                        'message': 'bg-gray-50 border-l-4 border-gray-400',
+                        'handoff': 'bg-yellow-50 border-l-4 border-yellow-400',
+                        'processing': 'bg-purple-50 border-l-4 border-purple-400',
+                        'error': 'bg-red-50 border-l-4 border-red-400'
+                    };
+                    return classes[type] || 'bg-gray-50';
+                },
+                
+                clearActivities() {
+                    this.activities = [];
+                    this.logActivity('system', 'Activity log cleared');
+                },
+                
+                exportActivities() {
+                    const data = this.activities.map(a => ({
+                        timestamp: this.formatTime(a.timestamp),
+                        type: a.type,
+                        message: a.message,
+                        details: a.details
+                    }));
+                    
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `swarm-activity-${new Date().toISOString().slice(0, 19)}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    
+                    this.logActivity('system', 'Activity log exported');
+                },
+                
+                scrollToBottom() {
+                    this.$nextTick(() => {
+                        const container = document.getElementById('messages-container');
+                        container.scrollTop = container.scrollHeight;
+                    });
+                },
+                
+                getSessionId() {
+                    let sessionId = localStorage.getItem('swarm_session_id');
+                    if (!sessionId) {
+                        sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                        localStorage.setItem('swarm_session_id', sessionId);
+                    }
+                    return sessionId;
+                }
+            }
+        }
+    </script>
+</body>
+</html> 

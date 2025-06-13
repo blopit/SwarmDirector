@@ -949,6 +949,17 @@ def register_routes(app):
         from flask import render_template
         return render_template('streaming_demo.html')
     
+    @app.route('/chat')
+    def chat():
+        """Main chat interface with transparency features"""
+        from flask import render_template
+        return render_template('chat.html')
+    
+    @app.route('/health')
+    def health():
+        """Health check endpoint for testing"""
+        return {'status': 'healthy', 'service': 'SwarmDirector'}
+    
     @app.route('/dashboard/analytics')
     def analytics_page():
         """Analytics dashboard page"""
