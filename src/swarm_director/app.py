@@ -15,6 +15,10 @@ from .models.base import db
 migrate = Migrate()
 mail = Mail()
 
+# Initialize streaming manager (will be configured in create_app)
+streaming_manager = None
+socketio = None
+
 def create_app(config_name='default'):
     """Application factory pattern for Flask app creation"""
     app = Flask(__name__)
@@ -27,6 +31,9 @@ def create_app(config_name='default'):
     db.init_app(app)
     migrate.init_app(app, db)
     mail.init_app(app)
+    
+    # Initialize streaming and WebSocket functionality
+    initialize_streaming(app)
     
     # Configure logging
     setup_logging(app)
@@ -51,6 +58,9 @@ def create_app(config_name='default'):
     
     # Register CLI commands
     register_database_commands(app)
+    
+    # Register WebSocket routes
+    register_websocket_routes(app)
     
     return app
 
@@ -917,6 +927,12 @@ def register_routes(app):
 </body>
 </html>'''
     
+    @app.route('/websocket-test')
+    def websocket_test():
+        """WebSocket test page"""
+        from flask import render_template
+        return render_template('websocket_test.html')
+    
     @app.route('/dashboard/analytics')
     def analytics_page():
         """Analytics dashboard page"""
@@ -1409,6 +1425,50 @@ def register_database_commands(app):
                     
         except Exception as e:
             print(f"❌ Error validating schema: {e}")
+
+def initialize_streaming(app):
+    """Initialize streaming manager and WebSocket functionality"""
+    global streaming_manager, socketio
+    
+    try:
+        # Import streaming components
+        from .utils.streaming import StreamingManager, StreamingConfig
+        from .web.websocket import create_websocket_app
+        
+        # Create streaming manager with default configuration
+        config = StreamingConfig(
+            buffer_size=app.config.get('STREAMING_BUFFER_SIZE', 1000),
+            rate_limit_tokens_per_second=app.config.get('STREAMING_RATE_LIMIT', 50),
+            backpressure_threshold=app.config.get('STREAMING_BACKPRESSURE_THRESHOLD', 0.8),
+            backpressure_resume_threshold=app.config.get('STREAMING_BACKPRESSURE_RESUME', 0.3)
+        )
+        
+        streaming_manager = StreamingManager(config)
+        
+        # Create WebSocket application
+        socketio = create_websocket_app(app, streaming_manager)
+        
+        # Store references in app extensions
+        app.extensions['streaming_manager'] = streaming_manager
+        app.extensions['socketio'] = socketio
+        
+        app.logger.info("Streaming and WebSocket functionality initialized")
+        
+    except Exception as e:
+        app.logger.error(f"Failed to initialize streaming functionality: {str(e)}")
+        # Continue without streaming if initialization fails
+        app.extensions['streaming_manager'] = None
+        app.extensions['socketio'] = None
+
+
+def register_websocket_routes(app):
+    """Register WebSocket-related HTTP routes"""
+    try:
+        from .web.websocket import register_websocket_routes as register_ws_routes
+        register_ws_routes(app)
+    except Exception as e:
+        app.logger.error(f"Failed to register WebSocket routes: {str(e)}")
+
 
 if __name__ == '__main__':
     # Create logs directory if it doesn't exist

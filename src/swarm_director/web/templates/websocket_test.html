@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwarmDirector WebSocket Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.streaming {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button.primary {
+            background-color: #007bff;
+            color: white;
+        }
+        button.success {
+            background-color: #28a745;
+            color: white;
+        }
+        button.warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        button.danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .metric {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .metric-label {
+            font-size: 12px;
+            color: #6c757d;
+            text-transform: uppercase;
+        }
+        .config {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .config input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+        .config label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔌 SwarmDirector WebSocket Test</h1>
+    
+    <div class="container">
+        <h2>Connection Status</h2>
+        <div id="connectionStatus" class="status disconnected">
+            Disconnected
+        </div>
+        
+        <div class="controls">
+            <button id="connectBtn" class="primary" onclick="connect()">Connect</button>
+            <button id="disconnectBtn" class="danger" onclick="disconnect()" disabled>Disconnect</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Streaming Configuration</h2>
+        <div class="config">
+            <div>
+                <label for="taskId">Task ID:</label>
+                <input type="text" id="taskId" value="test-task-001" placeholder="Enter task ID">
+            </div>
+            <div>
+                <label for="bufferSize">Buffer Size:</label>
+                <input type="number" id="bufferSize" value="1000" min="100" max="10000">
+            </div>
+            <div>
+                <label for="rateLimit">Rate Limit (tokens/sec):</label>
+                <input type="number" id="rateLimit" value="50" min="1" max="1000">
+            </div>
+            <div>
+                <label for="backpressureThreshold">Backpressure Threshold:</label>
+                <input type="number" id="backpressureThreshold" value="0.8" min="0.1" max="1.0" step="0.1">
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="startStreamBtn" class="success" onclick="startStream()" disabled>Start Stream</button>
+            <button id="pauseStreamBtn" class="warning" onclick="pauseStream()" disabled>Pause Stream</button>
+            <button id="resumeStreamBtn" class="warning" onclick="resumeStream()" disabled>Resume Stream</button>
+            <button id="stopStreamBtn" class="danger" onclick="stopStream()" disabled>Stop Stream</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Stream Metrics</h2>
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value" id="tokensReceived">0</div>
+                <div class="metric-label">Tokens Received</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="averageLatency">0ms</div>
+                <div class="metric-label">Average Latency</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="streamStatus">Idle</div>
+                <div class="metric-label">Stream Status</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="sessionId">None</div>
+                <div class="metric-label">Session ID</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="getStatusBtn" class="primary" onclick="getStreamStatus()" disabled>Get Status</button>
+            <button id="getMetricsBtn" class="primary" onclick="getStreamMetrics()" disabled>Get Metrics</button>
+            <button id="clearLogBtn" class="warning" onclick="clearLog()">Clear Log</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Event Log</h2>
+        <div id="eventLog" class="log">WebSocket test page loaded. Click Connect to start.\n</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script>
+        let socket = null;
+        let currentSessionId = null;
+        let tokensReceived = 0;
+        let latencies = [];
+        
+        function log(message) {
+            const timestamp = new Date().toISOString();
+            const logElement = document.getElementById('eventLog');
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateConnectionStatus(status, message) {
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.className = `status ${status}`;
+            statusElement.textContent = message;
+        }
+        
+        function updateButtons(connected, streaming) {
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('disconnectBtn').disabled = !connected;
+            document.getElementById('startStreamBtn').disabled = !connected || streaming;
+            document.getElementById('pauseStreamBtn').disabled = !connected || !streaming;
+            document.getElementById('resumeStreamBtn').disabled = !connected || !streaming;
+            document.getElementById('stopStreamBtn').disabled = !connected || !streaming;
+            document.getElementById('getStatusBtn').disabled = !connected;
+            document.getElementById('getMetricsBtn').disabled = !connected;
+        }
+        
+        function updateMetrics() {
+            document.getElementById('tokensReceived').textContent = tokensReceived;
+            document.getElementById('averageLatency').textContent = 
+                latencies.length > 0 ? 
+                Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) + 'ms' : 
+                '0ms';
+            document.getElementById('sessionId').textContent = currentSessionId || 'None';
+        }
+        
+        function connect() {
+            if (socket) {
+                socket.disconnect();
+            }
+            
+            log('Connecting to WebSocket server...');
+            updateConnectionStatus('disconnected', 'Connecting...');
+            
+            socket = io();
+            
+            socket.on('connect', () => {
+                log('Connected to WebSocket server');
+                updateConnectionStatus('connected', 'Connected');
+                updateButtons(true, false);
+            });
+            
+            socket.on('disconnect', () => {
+                log('Disconnected from WebSocket server');
+                updateConnectionStatus('disconnected', 'Disconnected');
+                updateButtons(false, false);
+                currentSessionId = null;
+                updateMetrics();
+            });
+            
+            socket.on('connection_status', (data) => {
+                log(`Connection status: ${JSON.stringify(data, null, 2)}`);
+            });
+            
+            socket.on('stream_started', (data) => {
+                log(`Stream started: ${JSON.stringify(data, null, 2)}`);
+                currentSessionId = data.session_id;
+                updateConnectionStatus('streaming', 'Streaming Active');
+                updateButtons(true, true);
+                document.getElementById('streamStatus').textContent = 'Active';
+                updateMetrics();
+            });
+            
+            socket.on('stream_stopped', (data) => {
+                log(`Stream stopped: ${JSON.stringify(data, null, 2)}`);
+                currentSessionId = null;
+                updateConnectionStatus('connected', 'Connected');
+                updateButtons(true, false);
+                document.getElementById('streamStatus').textContent = 'Stopped';
+                updateMetrics();
+            });
+            
+            socket.on('stream_paused', (data) => {
+                log(`Stream paused: ${JSON.stringify(data, null, 2)}`);
+                document.getElementById('streamStatus').textContent = 'Paused';
+            });
+            
+            socket.on('stream_resumed', (data) => {
+                log(`Stream resumed: ${JSON.stringify(data, null, 2)}`);
+                document.getElementById('streamStatus').textContent = 'Active';
+            });
+            
+            socket.on('stream_token', (data) => {
+                const receiveTime = Date.now();
+                const sendTime = new Date(data.timestamp).getTime();
+                const latency = receiveTime - sendTime;
+                
+                tokensReceived++;
+                latencies.push(latency);
+                if (latencies.length > 100) latencies.shift(); // Keep last 100 latencies
+                
+                log(`Token received: "${data.token}" (latency: ${latency}ms)`);
+                updateMetrics();
+            });
+            
+            socket.on('stream_status', (data) => {
+                log(`Stream status: ${JSON.stringify(data, null, 2)}`);
+                if (data.status) {
+                    document.getElementById('streamStatus').textContent = data.status.state || 'Unknown';
+                }
+            });
+            
+            socket.on('stream_metrics', (data) => {
+                log(`Stream metrics: ${JSON.stringify(data, null, 2)}`);
+            });
+            
+            socket.on('system_message', (data) => {
+                log(`System message [${data.type}]: ${data.message}`);
+            });
+            
+            socket.on('error', (data) => {
+                log(`Error: ${JSON.stringify(data, null, 2)}`);
+            });
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+        }
+        
+        function startStream() {
+            if (!socket) return;
+            
+            const config = {
+                buffer_size: parseInt(document.getElementById('bufferSize').value),
+                rate_limit: parseInt(document.getElementById('rateLimit').value),
+                backpressure_threshold: parseFloat(document.getElementById('backpressureThreshold').value),
+                backpressure_resume_threshold: 0.3
+            };
+            
+            const data = {
+                task_id: document.getElementById('taskId').value,
+                config: config
+            };
+            
+            log(`Starting stream with config: ${JSON.stringify(data, null, 2)}`);
+            socket.emit('start_stream', data);
+        }
+        
+        function stopStream() {
+            if (!socket) return;
+            
+            log('Stopping stream...');
+            socket.emit('stop_stream', {});
+        }
+        
+        function pauseStream() {
+            if (!socket) return;
+            
+            log('Pausing stream...');
+            socket.emit('pause_stream', {});
+        }
+        
+        function resumeStream() {
+            if (!socket) return;
+            
+            log('Resuming stream...');
+            socket.emit('resume_stream', {});
+        }
+        
+        function getStreamStatus() {
+            if (!socket) return;
+            
+            log('Getting stream status...');
+            socket.emit('get_stream_status', {});
+        }
+        
+        function getStreamMetrics() {
+            if (!socket) return;
+            
+            log('Getting stream metrics...');
+            socket.emit('get_stream_metrics', {});
+        }
+        
+        function clearLog() {
+            document.getElementById('eventLog').textContent = '';
+            tokensReceived = 0;
+            latencies = [];
+            updateMetrics();
+        }
+        
+        // Initialize page
+        updateButtons(false, false);
+        updateMetrics();
+    </script>
+</body>
+</html> 

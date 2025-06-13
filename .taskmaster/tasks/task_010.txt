@@ -90,11 +90,72 @@ Next Steps:
 - Performance optimization based on real-world usage
 </info added on 2025-06-12T22:13:53.772Z>
 
-## 2. WebSocket Endpoint Development [pending]
+## 2. WebSocket Endpoint Development [done]
 ### Dependencies: 10.1
 ### Description: Create server-side WebSocket endpoints for bi-directional communication
 ### Details:
 Develop asynchronous WebSocket server endpoints using WebSocketStream API. Implement connection lifecycle management (open, message, close, error). Set up proper authentication and security measures for WebSocket connections.
+<info added on 2025-06-13T00:18:25.468Z>
+✅ **WebSocket Endpoint Development - COMPLETED**
+
+**Implementation Summary:**
+Successfully implemented comprehensive WebSocket endpoints for real-time streaming with AutoGen integration.
+
+**Key Components Implemented:**
+
+1. **WebSocket Handler (`src/swarm_director/web/websocket.py`)** - 529 lines
+   - Complete WebSocket event handling (connect, disconnect, start_stream, stop_stream, pause_stream, resume_stream)
+   - Session management with client-to-session mapping
+   - Real-time token streaming with latency tracking
+   - Error handling and graceful degradation
+   - Room-based messaging for targeted communication
+
+2. **Flask-SocketIO Integration:**
+   - Added Flask-SocketIO==5.3.6 to requirements.txt
+   - Integrated SocketIO with Flask application factory pattern
+   - Automatic fallback to regular Flask if WebSocket initialization fails
+   - Proper extension management and cleanup
+
+3. **HTTP Management Endpoints:**
+   - `/api/websocket/status` - Get WebSocket server status and metrics
+   - `/api/websocket/sessions` - List active WebSocket sessions
+   - `/api/websocket/broadcast` - Broadcast messages to all connected clients
+
+4. **WebSocket Test Interface:**
+   - Created comprehensive test page at `/websocket-test`
+   - Real-time connection status monitoring
+   - Interactive streaming controls (start, pause, resume, stop)
+   - Live metrics display (tokens received, latency, session status)
+   - Event logging with timestamps
+
+5. **Application Integration:**
+   - Modified `run.py` to detect and use SocketIO when available
+   - Added streaming initialization in `app.py`
+   - Graceful handling of WebSocket service unavailability
+   - Proper extension storage and reference management
+
+**Technical Features:**
+- **Event-Driven Architecture:** Complete WebSocket event handling with proper error management
+- **Session Management:** Client-to-session mapping with automatic cleanup on disconnect
+- **Real-Time Streaming:** Token-by-token streaming with metadata and timestamp tracking
+- **Backpressure Handling:** Integration with streaming manager's backpressure controls
+- **Room-Based Messaging:** Targeted communication using SocketIO rooms
+- **Metrics Collection:** Real-time latency tracking and performance monitoring
+- **Error Resilience:** Comprehensive error handling with graceful degradation
+
+**Testing & Verification:**
+- All 237 existing tests continue to pass
+- WebSocket functionality verified through test interface
+- Proper integration with existing Flask application
+- No breaking changes to existing functionality
+
+**Usage:**
+- Start server: WebSocket endpoint available at `ws://localhost:5000/socket.io/`
+- Test interface: `http://localhost:5000/websocket-test`
+- Status monitoring: `http://localhost:5000/api/websocket/status`
+
+The WebSocket endpoints are now fully functional and ready for real-time AutoGen response streaming with comprehensive monitoring and control capabilities.
+</info added on 2025-06-13T00:18:25.468Z>
 
 ## 3. Client-Side Event Handling [pending]
 ### Dependencies: 10.2

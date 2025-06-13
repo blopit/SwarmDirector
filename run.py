@@ -43,8 +43,20 @@ def main():
     print("=" * 50)
     
     try:
-        # Run the application
-        app.run(host=host, port=port, debug=debug)
+        # Check if SocketIO is available and use it, otherwise fall back to regular Flask
+        socketio = app.extensions.get('socketio')
+        if socketio:
+            print("🔌 WebSocket support enabled")
+            print("  • WebSocket endpoint: ws://localhost:5000/socket.io/")
+            print("  • WebSocket status: http://localhost:5000/api/websocket/status")
+            print("=" * 50)
+            # Run with SocketIO support
+            socketio.run(app, host=host, port=port, debug=debug)
+        else:
+            print("⚠️  WebSocket support not available, running without streaming")
+            print("=" * 50)
+            # Run regular Flask application
+            app.run(host=host, port=port, debug=debug)
     except KeyboardInterrupt:
         print("\n👋 SwarmDirector stopped by user")
     except Exception as e:
