@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Dashboard - SwarmDirector</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .metric-card {
+            border-left: 4px solid #007bff;
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .metric-trend {
+            font-size: 0.9rem;
+        }
+        .alert-active {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .log-viewer {
+            height: 400px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+        }
+        .log-entry {
+            padding: 8px 12px;
+            border-bottom: 1px solid #e9ecef;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        .log-error { background-color: #f8d7da; }
+        .log-warn { background-color: #fff3cd; }
+        .log-info { background-color: #d1ecf1; }
+        .log-debug { background-color: #f8f9fa; }
+        .real-time-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-connected { background-color: #28a745; }
+        .status-disconnected { background-color: #dc3545; }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/dashboard">
+                <i class="fas fa-chart-line"></i> SwarmDirector Monitoring
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text">
+                    <span id="connectionStatus" class="real-time-indicator status-disconnected"></span>
+                    <span id="connectionText">Connecting...</span>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Alert Bar -->
+        <div id="alertBar" class="alert alert-warning alert-dismissible fade" role="alert" style="display: none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="alertMessage"></span>
+            <button type="button" class="btn-close" onclick="dismissAlert()"></button>
+        </div>
+
+        <!-- System Metrics Overview -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2><i class="fas fa-server"></i> System Metrics Overview</h2>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title text-muted">CPU Usage</h6>
+                                <div class="metric-value" id="cpuUsage">--</div>
+                                <small class="metric-trend text-success" id="cpuTrend">
+                                    <i class="fas fa-arrow-up"></i> Loading...
+                                </small>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-microchip fa-2x text-primary"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title text-muted">Memory Usage</h6>
+                                <div class="metric-value" id="memoryUsage">--</div>
+                                <small class="metric-trend text-success" id="memoryTrend">
+                                    <i class="fas fa-arrow-up"></i> Loading...
+                                </small>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-memory fa-2x text-info"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title text-muted">Response Time</h6>
+                                <div class="metric-value" id="avgResponseTime">--</div>
+                                <small class="metric-trend text-success" id="responseTrend">
+                                    <i class="fas fa-arrow-down"></i> Loading...
+                                </small>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-clock fa-2x text-warning"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title text-muted">Error Rate</h6>
+                                <div class="metric-value" id="errorRate">--</div>
+                                <small class="metric-trend text-danger" id="errorTrend">
+                                    <i class="fas fa-arrow-up"></i> Loading...
+                                </small>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-exclamation-circle fa-2x text-danger"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-line"></i> Performance Trends</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-pie"></i> Endpoint Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="endpointChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs and Alerts Row -->
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-list-alt"></i> Real-time Logs</h5>
+                        <div>
+                            <select id="logLevelFilter" class="form-select form-select-sm me-2" onchange="filterLogs()">
+                                <option value="">All Levels</option>
+                                <option value="DEBUG">Debug</option>
+                                <option value="INFO">Info</option>
+                                <option value="WARNING">Warning</option>
+                                <option value="ERROR">Error</option>
+                            </select>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="clearLogs()">
+                                <i class="fas fa-trash"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="logViewer" class="log-viewer"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-bell"></i> Active Alerts</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="alertsList">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-check-circle fa-2x"></i>
+                                <p>No active alerts</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5><i class="fas fa-cog"></i> Alert Configuration</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">CPU Threshold (%)</label>
+                            <input type="number" id="cpuThreshold" class="form-control" value="80" min="1" max="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Memory Threshold (%)</label>
+                            <input type="number" id="memoryThreshold" class="form-control" value="85" min="1" max="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Error Rate Threshold (%)</label>
+                            <input type="number" id="errorThreshold" class="form-control" value="5" min="0" max="100">
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="updateAlertThresholds()">
+                            <i class="fas fa-save"></i> Update Thresholds
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global state management
+        const monitoringDashboard = {
+            charts: {},
+            alerts: [],
+            logs: [],
+            lastUpdate: null,
+            updateInterval: 5000,
+            isConnected: false,
+            thresholds: {
+                cpu: 80,
+                memory: 85,
+                errorRate: 5
+            }
+        };
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing Monitoring Dashboard...');
+            initializeCharts();
+            startRealTimeUpdates();
+            updateConnectionStatus(false);
+        });
+
+        function initializeCharts() {
+            // Performance trends chart
+            const perfCtx = document.getElementById('performanceChart').getContext('2d');
+            monitoringDashboard.charts.performance = new Chart(perfCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'CPU %',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Memory %',
+                        data: [],
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+
+            // Endpoint performance chart
+            const endpointCtx = document.getElementById('endpointChart').getContext('2d');
+            monitoringDashboard.charts.endpoint = new Chart(endpointCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                            '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            });
+        }
+
+        async function updateMetrics() {
+            try {
+                // Fetch system metrics
+                const systemResponse = await fetch('/api/metrics/system');
+                const systemData = await systemResponse.json();
+                
+                // Fetch endpoint metrics
+                const endpointResponse = await fetch('/api/metrics/endpoints');
+                const endpointData = await endpointResponse.json();
+                
+                // Fetch metrics summary
+                const summaryResponse = await fetch('/api/metrics/summary');
+                const summaryData = await summaryResponse.json();
+
+                if (systemData.success) {
+                    updateSystemMetrics(systemData.data);
+                }
+                
+                if (endpointData.success) {
+                    updateEndpointChart(endpointData.data);
+                }
+                
+                if (summaryData.success) {
+                    updatePerformanceChart(summaryData.data);
+                }
+
+                monitoringDashboard.lastUpdate = new Date();
+                updateConnectionStatus(true);
+                
+            } catch (error) {
+                console.error('Failed to update metrics:', error);
+                updateConnectionStatus(false);
+            }
+        }
+
+        function updateSystemMetrics(metrics) {
+            // Update CPU usage
+            if (metrics.cpu_usage) {
+                const cpuValue = metrics.cpu_usage.value.toFixed(1);
+                document.getElementById('cpuUsage').textContent = cpuValue + '%';
+                updateTrendIndicator('cpuTrend', cpuValue, monitoringDashboard.thresholds.cpu);
+                checkAlert('cpu', cpuValue, monitoringDashboard.thresholds.cpu);
+            }
+
+            // Update Memory usage
+            if (metrics.memory_usage) {
+                const memValue = metrics.memory_usage.value.toFixed(1);
+                document.getElementById('memoryUsage').textContent = memValue + '%';
+                updateTrendIndicator('memoryTrend', memValue, monitoringDashboard.thresholds.memory);
+                checkAlert('memory', memValue, monitoringDashboard.thresholds.memory);
+            }
+        }
+
+        function updateEndpointChart(endpoints) {
+            const labels = [];
+            const data = [];
+            
+            Object.entries(endpoints).forEach(([endpoint, stats]) => {
+                if (stats.request_count && stats.request_count > 0) {
+                    labels.push(endpoint.replace('/api/', ''));
+                    data.push(stats.avg_response_time || 0);
+                }
+            });
+
+            monitoringDashboard.charts.endpoint.data.labels = labels;
+            monitoringDashboard.charts.endpoint.data.datasets[0].data = data;
+            monitoringDashboard.charts.endpoint.update();
+
+            // Update response time summary
+            const avgResponseTime = data.length > 0 ? 
+                (data.reduce((a, b) => a + b, 0) / data.length).toFixed(1) : '0';
+            document.getElementById('avgResponseTime').textContent = avgResponseTime + 'ms';
+        }
+
+        function updatePerformanceChart(summary) {
+            const chart = monitoringDashboard.charts.performance;
+            const now = new Date().toLocaleTimeString();
+            
+            // Keep only last 20 data points
+            if (chart.data.labels.length >= 20) {
+                chart.data.labels.shift();
+                chart.data.datasets.forEach(dataset => dataset.data.shift());
+            }
+            
+            chart.data.labels.push(now);
+            
+            // Add new data points (mock data for now, replace with actual metrics)
+            const systemMetrics = summary.system_metrics || {};
+            const cpuMetric = Object.values(systemMetrics).find(m => m.cpu_usage);
+            const memMetric = Object.values(systemMetrics).find(m => m.memory_usage);
+            
+            chart.data.datasets[0].data.push(cpuMetric ? cpuMetric.cpu_usage.latest : Math.random() * 100);
+            chart.data.datasets[1].data.push(memMetric ? memMetric.memory_usage.latest : Math.random() * 100);
+            
+            chart.update('none');
+        }
+
+        function updateTrendIndicator(elementId, currentValue, threshold) {
+            const element = document.getElementById(elementId);
+            if (currentValue > threshold) {
+                element.className = 'metric-trend text-danger';
+                element.innerHTML = '<i class="fas fa-arrow-up"></i> High';
+            } else {
+                element.className = 'metric-trend text-success';
+                element.innerHTML = '<i class="fas fa-arrow-down"></i> Normal';
+            }
+        }
+
+        function checkAlert(type, value, threshold) {
+            const alertId = `alert-${type}`;
+            const existingAlert = monitoringDashboard.alerts.find(a => a.id === alertId);
+            
+            if (value > threshold && !existingAlert) {
+                const alert = {
+                    id: alertId,
+                    type: type,
+                    message: `${type.toUpperCase()} usage is high: ${value}%`,
+                    timestamp: new Date(),
+                    level: 'warning'
+                };
+                
+                monitoringDashboard.alerts.push(alert);
+                displayAlert(alert);
+                showGlobalAlert(`⚠️ ${alert.message}`);
+            } else if (value <= threshold && existingAlert) {
+                // Remove resolved alert
+                monitoringDashboard.alerts = monitoringDashboard.alerts.filter(a => a.id !== alertId);
+                refreshAlertsList();
+            }
+        }
+
+        function displayAlert(alert) {
+            refreshAlertsList();
+        }
+
+        function refreshAlertsList() {
+            const alertsList = document.getElementById('alertsList');
+            
+            if (monitoringDashboard.alerts.length === 0) {
+                alertsList.innerHTML = `
+                    <div class="text-center text-muted">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                        <p>No active alerts</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            alertsList.innerHTML = monitoringDashboard.alerts.map(alert => `
+                <div class="alert alert-${alert.level === 'error' ? 'danger' : 'warning'} alert-sm mb-2">
+                    <small class="d-block">
+                        <strong>${alert.timestamp.toLocaleTimeString()}</strong><br>
+                        ${alert.message}
+                    </small>
+                </div>
+            `).join('');
+        }
+
+        function showGlobalAlert(message) {
+            const alertBar = document.getElementById('alertBar');
+            const alertMessage = document.getElementById('alertMessage');
+            
+            alertMessage.textContent = message;
+            alertBar.style.display = 'block';
+            alertBar.classList.add('show', 'alert-active');
+            
+            // Auto-dismiss after 10 seconds
+            setTimeout(() => {
+                dismissAlert();
+            }, 10000);
+        }
+
+        function dismissAlert() {
+            const alertBar = document.getElementById('alertBar');
+            alertBar.classList.remove('show', 'alert-active');
+            setTimeout(() => {
+                alertBar.style.display = 'none';
+            }, 300);
+        }
+
+        function updateConnectionStatus(connected) {
+            monitoringDashboard.isConnected = connected;
+            const statusIndicator = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            
+            if (connected) {
+                statusIndicator.className = 'real-time-indicator status-connected';
+                statusText.textContent = 'Connected';
+            } else {
+                statusIndicator.className = 'real-time-indicator status-disconnected';
+                statusText.textContent = 'Disconnected';
+            }
+        }
+
+        function updateAlertThresholds() {
+            monitoringDashboard.thresholds.cpu = parseInt(document.getElementById('cpuThreshold').value);
+            monitoringDashboard.thresholds.memory = parseInt(document.getElementById('memoryThreshold').value);
+            monitoringDashboard.thresholds.errorRate = parseInt(document.getElementById('errorThreshold').value);
+            
+            showGlobalAlert('✅ Alert thresholds updated successfully');
+        }
+
+        function filterLogs() {
+            const filter = document.getElementById('logLevelFilter').value;
+            const logEntries = document.querySelectorAll('.log-entry');
+            
+            logEntries.forEach(entry => {
+                if (!filter || entry.dataset.level === filter) {
+                    entry.style.display = 'block';
+                } else {
+                    entry.style.display = 'none';
+                }
+            });
+        }
+
+        function clearLogs() {
+            document.getElementById('logViewer').innerHTML = '';
+            monitoringDashboard.logs = [];
+        }
+
+        function addLogEntry(level, message, timestamp = new Date()) {
+            const logViewer = document.getElementById('logViewer');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${level.toLowerCase()}`;
+            logEntry.dataset.level = level;
+            
+            logEntry.innerHTML = `
+                <span class="text-muted">[${timestamp.toLocaleTimeString()}]</span>
+                <span class="badge bg-${getLogLevelColor(level)} me-2">${level}</span>
+                ${message}
+            `;
+            
+            logViewer.appendChild(logEntry);
+            logViewer.scrollTop = logViewer.scrollHeight;
+            
+            // Keep only last 100 log entries
+            const entries = logViewer.querySelectorAll('.log-entry');
+            if (entries.length > 100) {
+                entries[0].remove();
+            }
+        }
+
+        function getLogLevelColor(level) {
+            switch (level.toUpperCase()) {
+                case 'ERROR': return 'danger';
+                case 'WARNING': return 'warning';
+                case 'INFO': return 'info';
+                case 'DEBUG': return 'secondary';
+                default: return 'light';
+            }
+        }
+
+        function startRealTimeUpdates() {
+            // Initial update
+            updateMetrics();
+            
+            // Set up periodic updates
+            setInterval(updateMetrics, monitoringDashboard.updateInterval);
+            
+            // Simulate some log entries for demo
+            setTimeout(() => {
+                addLogEntry('INFO', 'Monitoring dashboard initialized successfully');
+                addLogEntry('DEBUG', 'Starting real-time metrics collection');
+            }, 1000);
+            
+            // Simulate periodic log entries
+            setInterval(() => {
+                const levels = ['INFO', 'DEBUG', 'WARNING'];
+                const messages = [
+                    'Metrics collection completed',
+                    'System health check passed',
+                    'Performance threshold check',
+                    'Alert evaluation completed',
+                    'Database connection healthy'
+                ];
+                
+                const level = levels[Math.floor(Math.random() * levels.length)];
+                const message = messages[Math.floor(Math.random() * messages.length)];
+                
+                addLogEntry(level, message);
+            }, 8000);
+        }
+    </script>
+</body>
+</html>

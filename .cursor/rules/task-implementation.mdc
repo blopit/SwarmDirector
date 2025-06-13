@@ -3,3 +3,177 @@ description:
 globs:
 alwaysApply: false
 ---
+# Task Implementation Workflow
+
+## Pre-Implementation Phase
+
+- **Always fetch and review the next task**
+  - Use `get_next_task` to identify what to work on
+  - Read the corresponding task context document in `.taskmaster/tasks/task_XXX.txt`
+  - Understand all subtasks and dependencies before starting
+
+- **Set task status to in-progress**
+  - Mark task as `in-progress` when beginning implementation
+  - This provides clear tracking of what's being worked on
+
+## Implementation Strategy
+
+### 1. **Follow Task Structure Systematically**
+- Implement subtasks in dependency order
+- Complete each subtask fully before moving to the next
+- Update subtask status as you progress
+
+### 2. **Directory and File Organization**
+- Create directory structure as specified in task details
+- Follow consistent naming conventions
+- Organize files logically (models/, utils/, agents/, etc.)
+
+### 3. **Dependencies and Requirements**
+- Install dependencies first: `pip install -r requirements.txt`
+- Handle import errors gracefully with try/catch blocks
+- Test imports before proceeding with implementation
+
+### 4. **Database Design Patterns**
+- Use consistent base model patterns with common fields (id, created_at, updated_at)
+- Implement proper relationships with correct SQLAlchemy syntax
+- Use `remote_side='Model.id'` for self-referential relationships
+- Handle reserved keywords (like `metadata`) by using alternative names
+
+### 5. **Error Handling and Validation**
+- Test database connections before proceeding
+- Use proper SQLAlchemy text() wrapper for raw SQL
+- Implement comprehensive error handlers for Flask routes
+- Validate models can be created and relationships work
+
+## Code Quality Standards
+
+### Database Models
+```python
+# ✅ DO: Use proper self-referential relationships
+parent = db.relationship('Agent', remote_side='Agent.id', backref='children')
+
+# ✅ DO: Avoid reserved keywords
+message_metadata = db.Column(db.JSON)  # not 'metadata'
+
+# ✅ DO: Use proper SQL text wrapper
+db.session.execute(text('SELECT 1'))
+```
+
+### Flask Application Structure
+```python
+# ✅ DO: Use application factory pattern
+def create_app(config_name='default'):
+    app = Flask(__name__)
+    # Configuration and initialization
+    return app
+
+# ✅ DO: Separate concerns
+- app.py: Main application factory
+- config.py: Configuration classes
+- models/: Database models
+- utils/: Helper functions
+- agents/: Business logic
+```
+
+### Testing and Validation
+```python
+# ✅ DO: Create comprehensive test scripts
+def test_app_creation():
+    """Test Flask app can be created"""
+    
+def test_database_operations():
+    """Test CRUD operations work"""
+    
+def test_routes():
+    """Test all endpoints respond correctly"""
+```
+
+## Testing Requirements
+
+### Mandatory Tests Before Task Completion
+- **Application Creation**: Verify Flask app initializes without errors
+- **Database Operations**: Test table creation, model instantiation, and relationships
+- **Route Testing**: Verify all endpoints return expected responses
+- **Integration Testing**: Test complete workflows work end-to-end
+
+### Test Script Pattern
+```python
+#!/usr/bin/env python3
+"""Test script for [Component Name]"""
+
+def run_tests():
+    print("🚀 Starting [Component] Tests")
+    # Run all test functions
+    # Report overall success/failure
+    
+if __name__ == "__main__":
+    run_tests()
+```
+
+## Documentation Standards
+
+### Task Documentation Updates
+- Update subtask details with implementation notes
+- Document any deviations from original plan
+- Record solutions to technical challenges
+- Note any additional dependencies or requirements
+
+### Code Documentation
+- Include comprehensive docstrings for all classes and functions
+- Document complex business logic and relationships
+- Provide usage examples in docstrings
+- Maintain up-to-date README files
+
+## Post-Implementation Phase
+
+### Validation Checklist
+- [ ] All subtasks completed and tested
+- [ ] Dependencies installed and working
+- [ ] Database schema created successfully
+- [ ] All routes responding correctly
+- [ ] Error handling implemented
+- [ ] Logging configured and working
+- [ ] Test script passes all checks
+
+### Task Completion
+- Run comprehensive test script to verify everything works
+- Mark task status as `done` only after all validation passes
+- Update task documentation with final implementation notes
+- Create or update relevant rules based on patterns discovered
+
+### Rule Creation
+- Document new patterns and practices discovered during implementation
+- Create rules for reusable code patterns
+- Update existing rules with new insights
+- Follow MDC rule format with proper frontmatter
+
+## Common Pitfalls to Avoid
+
+### Database Issues
+- **Reserved Keywords**: Avoid SQLAlchemy reserved words like `metadata`
+- **Relationship Syntax**: Use proper remote_side syntax for self-references
+- **SQL Text**: Always wrap raw SQL in `text()` function
+
+### Import Issues
+- **Circular Imports**: Be careful with model imports in app.py
+- **Missing Dependencies**: Check all imports work before proceeding
+- **Version Conflicts**: Handle dependency conflicts gracefully
+
+### Flask Configuration
+- **Database Instance**: Use single db instance across all modules
+- **Error Handlers**: Implement proper error handling for all routes
+- **Logging**: Configure both file and console logging
+
+## Example Implementation Flow
+
+1. **Start**: Fetch next task and review documentation
+2. **Setup**: Create directory structure and install dependencies
+3. **Models**: Implement database models with proper relationships
+4. **Core Logic**: Build business logic and utilities
+5. **Routes**: Create Flask routes and error handlers
+6. **Testing**: Write and run comprehensive tests
+7. **Validation**: Ensure all functionality works as expected
+8. **Documentation**: Update task docs and create rules
+9. **Complete**: Mark task as done and commit changes
+
+This workflow ensures systematic, well-tested, and documented implementation of complex tasks while maintaining code quality and following best practices.

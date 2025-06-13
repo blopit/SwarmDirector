@@ -55,6 +55,9 @@ def create_app(config_name='default'):
     # Setup metrics integration
     setup_metrics_integration()
     
+    # Setup alerting system
+    setup_alerting_system(app)
+    
     # Register error handlers
     register_error_handlers(app)
     
@@ -214,6 +217,167 @@ def register_routes(app):
             return jsonify({
                 'success': True,
                 'data': stats
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    # ============================================================================
+    # MONITORING AND ALERTING API ENDPOINTS
+    # ============================================================================
+
+    @app.route('/monitoring')
+    def monitoring_dashboard():
+        """Monitoring dashboard page with real-time metrics visualization"""
+        from flask import render_template
+        return render_template('monitoring_dashboard.html')
+
+    @app.route('/api/alerts/active')
+    def get_active_alerts():
+        """Get all active alerts"""
+        try:
+            from .utils.alerting import get_alerting_engine
+            alerting_engine = get_alerting_engine()
+            active_alerts = alerting_engine.get_active_alerts()
+            
+            return jsonify({
+                'success': True,
+                'data': active_alerts,
+                'count': len(active_alerts)
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/alerts/history')
+    def get_alert_history():
+        """Get alert history"""
+        try:
+            from .utils.alerting import get_alerting_engine
+            alerting_engine = get_alerting_engine()
+            limit = request.args.get('limit', 100, type=int)
+            alert_history = alerting_engine.get_alert_history(limit)
+            
+            return jsonify({
+                'success': True,
+                'data': alert_history,
+                'count': len(alert_history)
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/alerts/acknowledge/<alert_id>', methods=['POST'])
+    def acknowledge_alert(alert_id):
+        """Acknowledge an active alert"""
+        try:
+            from .utils.alerting import get_alerting_engine
+            alerting_engine = get_alerting_engine()
+            
+            data = request.get_json() or {}
+            acknowledged_by = data.get('acknowledged_by', 'Unknown')
+            
+            success = alerting_engine.acknowledge_alert(alert_id, acknowledged_by)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Alert acknowledged successfully'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Alert not found or already acknowledged'
+                }), 404
+                
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/alerts/thresholds', methods=['GET', 'POST'])
+    def manage_alert_thresholds():
+        """Get or update alert thresholds"""
+        try:
+            from .utils.alerting import get_alerting_engine
+            alerting_engine = get_alerting_engine()
+            
+            if request.method == 'GET':
+                # Return current thresholds
+                thresholds = {}
+                for name, threshold in alerting_engine.thresholds.items():
+                    thresholds[name] = {
+                        'metric_name': threshold.metric_name,
+                        'threshold_value': threshold.threshold_value,
+                        'comparison': threshold.comparison,
+                        'level': threshold.level.value,
+                        'cooldown_minutes': threshold.cooldown_minutes,
+                        'description': threshold.description
+                    }
+                
+                return jsonify({
+                    'success': True,
+                    'data': thresholds
+                })
+            
+            elif request.method == 'POST':
+                # Update thresholds
+                data = request.get_json() or {}
+                updated_count = 0
+                
+                for metric_name, new_value in data.items():
+                    if alerting_engine.update_threshold_value(metric_name, float(new_value)):
+                        updated_count += 1
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'Updated {updated_count} thresholds'
+                })
+                
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/logs/recent')
+    def get_recent_logs():
+        """Get recent log entries for dashboard display"""
+        try:
+            # This would typically read from your log files or database
+            # For now, return mock data that matches the expected format
+            mock_logs = [
+                {
+                    'timestamp': '2025-06-13T05:30:00Z',
+                    'level': 'INFO',
+                    'message': 'System health check completed successfully',
+                    'correlation_id': 'health-check-001'
+                },
+                {
+                    'timestamp': '2025-06-13T05:29:45Z',
+                    'level': 'DEBUG',
+                    'message': 'Metrics collection cycle completed',
+                    'correlation_id': 'metrics-001'
+                },
+                {
+                    'timestamp': '2025-06-13T05:29:30Z',
+                    'level': 'INFO',
+                    'message': 'Performance monitoring active',
+                    'correlation_id': 'perf-monitor-001'
+                }
+            ]
+            
+            return jsonify({
+                'success': True,
+                'data': mock_logs,
+                'count': len(mock_logs)
             })
         except Exception as e:
             return jsonify({
@@ -1579,6 +1743,61 @@ def register_websocket_routes(app):
         register_ws_routes(app)
     except Exception as e:
         app.logger.error(f"Failed to register WebSocket routes: {str(e)}")
+
+
+def setup_alerting_system(app):
+    """Setup and initialize the alerting system"""
+    try:
+        from .utils.alerting import setup_alerting
+        
+        # Get alerting configuration from app config or use defaults
+        alerting_config = app.config.get('ALERTING_CONFIG', {
+            'check_interval_seconds': 30,
+            'max_history_size': 1000,
+            'thresholds': {
+                'cpu_usage': {
+                    'threshold_value': 80.0,
+                    'comparison': 'gt',
+                    'level': 'warning',
+                    'cooldown_minutes': 5,
+                    'description': 'High CPU usage detected'
+                },
+                'memory_usage': {
+                    'threshold_value': 85.0,
+                    'comparison': 'gt',
+                    'level': 'warning',
+                    'cooldown_minutes': 5,
+                    'description': 'High memory usage detected'
+                },
+                'error_rate': {
+                    'threshold_value': 5.0,
+                    'comparison': 'gt',
+                    'level': 'error',
+                    'cooldown_minutes': 3,
+                    'description': 'High error rate detected'
+                }
+            },
+            'notifications': {
+                'console': {'enabled': True},
+                'email': {'enabled': False},
+                'webhook': {'enabled': False}
+            }
+        })
+        
+        # Initialize and start alerting
+        alerting_engine = setup_alerting(alerting_config)
+        
+        # Store reference in app extensions for cleanup
+        if not hasattr(app, 'extensions'):
+            app.extensions = {}
+        app.extensions['alerting_engine'] = alerting_engine
+        
+        app.logger.info("Alerting system initialized successfully")
+        
+    except Exception as e:
+        app.logger.error(f"Failed to setup alerting system: {str(e)}")
+        # Don't fail the entire app if alerting setup fails
+        pass
 
 
 if __name__ == '__main__':

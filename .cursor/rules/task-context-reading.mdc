@@ -3,3 +3,83 @@ description:
 globs:
 alwaysApply: false
 ---
+---
+description: Mandatory rule to read task and subtask context documents before any implementation work
+globs: "**/*"
+alwaysApply: true
+---
+
+# Task Context Reading Requirements
+
+## **Mandatory Pre-Implementation Steps**
+
+- **ALWAYS read context documents before starting any task work**
+  - Read `.taskmaster/context/task_XXX/task.md` for main task context
+  - Read `.taskmaster/context/task_XXX/subtask_XXX.md` for specific subtask context
+  - Review `.taskmaster/tasks/task_XXX.txt` for detailed requirements
+  - Understand scope, assumptions, constraints, and success criteria
+
+## **Context Document Structure**
+
+- **Task Context**: `.taskmaster/context/task_XXX/task.md`
+  - Contains overall task overview and requirements
+  - Defines scope, assumptions, and constraints
+  - Lists implementation components and dependencies
+  - Specifies success criteria and testing requirements
+
+- **Subtask Context**: `.taskmaster/context/task_XXX/subtask_XXX.md`
+  - Contains specific subtask implementation details
+  - Defines interfaces, code snippets, and examples
+  - Specifies testing strategies and integration points
+  - Lists risks, mitigations, and next steps
+
+## **Implementation Workflow**
+
+1. **Read Context First**: Always start by reading relevant context documents
+2. **Understand Requirements**: Extract specific technical and functional requirements
+3. **Plan Implementation**: Use context to guide implementation approach
+4. **Verify Against Context**: Ensure implementation meets documented criteria
+5. **Update Context**: Update context documents with implementation notes if needed
+
+## **Context Validation**
+
+- **Check for Specific Details**: Ensure context contains actual requirements, not generic templates
+- **Identify Missing Information**: Flag when context documents need updates
+- **Cross-Reference**: Verify context aligns with task files and PRD requirements
+- **Document Assumptions**: Note any assumptions made when context is unclear
+
+## **Quality Assurance**
+
+- **No Implementation Without Context**: Never start coding without reading context docs
+- **Context-Driven Development**: Let context documents guide technical decisions
+- **Requirement Traceability**: Ensure all context requirements are addressed
+- **Documentation Updates**: Keep context current with implementation changes
+
+## **Exception Handling**
+
+- **Generic Templates**: When context contains only generic templates, refer to task files
+- **Missing Context**: Create specific context based on task requirements if missing
+- **Conflicting Information**: Resolve conflicts between context and task files
+- **Unclear Requirements**: Seek clarification before proceeding with implementation
+
+## **Examples**
+
+```bash
+# ✅ DO: Read context before implementation
+1. cat .taskmaster/context/task_015/task.md
+2. cat .taskmaster/context/task_015/subtask_001.md
+3. cat .taskmaster/tasks/task_015.txt
+4. Start implementation based on context
+
+# ❌ DON'T: Start implementation without context
+1. Start coding immediately
+2. Assume requirements from task title only
+3. Skip context documentation review
+```
+
+## **Integration with Development Workflow**
+
+- **Task Master Integration**: Context reading is part of standard Task Master workflow
+- **Code Review**: Verify context adherence during code reviews
+- **Testing**: Ensure tests validate context requirements
+- **Documentation**: Update context as implementation evolves
