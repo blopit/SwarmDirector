@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwarmDirector Streaming Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+        
+        .control-panel {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+        }
+        
+        .control-section {
+            margin-bottom: 30px;
+        }
+        
+        .control-section h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+        
+        .status-indicator.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-indicator.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-indicator.streaming {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.15s ease-in-out;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover:not(:disabled) {
+            background: #218838;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover:not(:disabled) {
+            background: #e0a800;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover:not(:disabled) {
+            background: #c82333;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: #5a6268;
+        }
+        
+        .stream-display {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .stream-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .stream-title {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .stream-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .stream-content {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            background: #fafafa;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .metric-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .log-container {
+            grid-column: 1 / -1;
+            margin-top: 30px;
+        }
+        
+        .log-content {
+            background: #212529;
+            color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            opacity: 0.8;
+        }
+        
+        .log-entry.error {
+            color: #ff6b6b;
+        }
+        
+        .log-entry.warn {
+            color: #feca57;
+        }
+        
+        .log-entry.info {
+            color: #48dbfb;
+        }
+        
+        .log-entry.debug {
+            color: #ff9ff3;
+        }
+        
+        .typewriter-cursor {
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        .demo-scenarios {
+            margin-top: 20px;
+            padding: 20px;
+            background: #e9ecef;
+            border-radius: 8px;
+        }
+        
+        .scenario-btn {
+            margin: 5px;
+            padding: 8px 16px;
+            font-size: 12px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .btn {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 SwarmDirector Streaming Demo</h1>
+            <p>Real-time AutoGen response streaming with advanced client-side event handling</p>
+        </div>
+        
+        <div class="main-content">
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <!-- Connection Status -->
+                <div class="control-section">
+                    <h3>Connection Status</h3>
+                    <div id="connectionStatus" class="status-indicator disconnected">
+                        <div class="status-dot"></div>
+                        <span>Disconnected</span>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button id="connectBtn" class="btn btn-primary">
+                            🔌 Connect
+                        </button>
+                        <button id="disconnectBtn" class="btn btn-danger" disabled>
+                            ❌ Disconnect
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Stream Configuration -->
+                <div class="control-section">
+                    <h3>Stream Configuration</h3>
+                    
+                    <div class="form-group">
+                        <label for="taskId">Task ID</label>
+                        <input type="text" id="taskId" value="demo-task-001" placeholder="Enter task ID">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="bufferSize">Buffer Size</label>
+                        <input type="number" id="bufferSize" value="1000" min="100" max="10000">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="rateLimit">Rate Limit (tokens/sec)</label>
+                        <input type="number" id="rateLimit" value="50" min="1" max="1000">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="typewriterSpeed">Typewriter Speed (ms)</label>
+                        <input type="number" id="typewriterSpeed" value="50" min="0" max="500">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="enableTypewriter">
+                            <input type="checkbox" id="enableTypewriter" checked> Enable Typewriter Effect
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Stream Controls -->
+                <div class="control-section">
+                    <h3>Stream Controls</h3>
+                    
+                    <div class="button-group">
+                        <button id="startStreamBtn" class="btn btn-success" disabled>
+                            ▶️ Start Stream
+                        </button>
+                        <button id="pauseStreamBtn" class="btn btn-warning" disabled>
+                            ⏸️ Pause
+                        </button>
+                        <button id="resumeStreamBtn" class="btn btn-warning" disabled>
+                            ⏯️ Resume
+                        </button>
+                        <button id="stopStreamBtn" class="btn btn-danger" disabled>
+                            ⏹️ Stop
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Demo Scenarios -->
+                <div class="control-section">
+                    <h3>Demo Scenarios</h3>
+                    <div class="demo-scenarios">
+                        <button class="btn btn-secondary scenario-btn" onclick="simulateCodeGeneration()">
+                            💻 Code Generation
+                        </button>
+                        <button class="btn btn-secondary scenario-btn" onclick="simulateConversation()">
+                            💬 Conversation
+                        </button>
+                        <button class="btn btn-secondary scenario-btn" onclick="simulateAnalysis()">
+                            📊 Analysis
+                        </button>
+                        <button class="btn btn-secondary scenario-btn" onclick="simulateError()">
+                            ⚠️ Error Scenario
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stream Display -->
+            <div class="stream-display">
+                <div class="stream-header">
+                    <div class="stream-title">Live Stream Output</div>
+                    <div class="stream-controls">
+                        <button id="clearStreamBtn" class="btn btn-secondary">
+                            🗑️ Clear
+                        </button>
+                        <button id="exportStreamBtn" class="btn btn-secondary">
+                            💾 Export
+                        </button>
+                    </div>
+                </div>
+                <div id="streamContent" class="stream-content">
+                    Welcome to SwarmDirector Streaming Demo!
+                    
+Connect to the WebSocket server and start a stream to see real-time token streaming in action.
+
+Features:
+• Real-time token streaming with typewriter effects
+• Configurable rate limiting and backpressure handling
+• Connection management with automatic reconnection
+• Comprehensive metrics and monitoring
+• Syntax highlighting for code blocks
+• Export capabilities for different formats
+                </div>
+            </div>
+        </div>
+        
+        <!-- Metrics Dashboard -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div id="tokensReceived" class="metric-value">0</div>
+                <div class="metric-label">Tokens Received</div>
+            </div>
+            <div class="metric-card">
+                <div id="averageLatency" class="metric-value">0ms</div>
+                <div class="metric-label">Average Latency</div>
+            </div>
+            <div class="metric-card">
+                <div id="streamStatus" class="metric-value">Idle</div>
+                <div class="metric-label">Stream Status</div>
+            </div>
+            <div class="metric-card">
+                <div id="sessionId" class="metric-value">None</div>
+                <div class="metric-label">Session ID</div>
+            </div>
+            <div class="metric-card">
+                <div id="connectionTime" class="metric-value">-</div>
+                <div class="metric-label">Connected Since</div>
+            </div>
+            <div class="metric-card">
+                <div id="tokensPerSecond" class="metric-value">0</div>
+                <div class="metric-label">Tokens/Second</div>
+            </div>
+        </div>
+        
+        <!-- Event Log -->
+        <div class="log-container">
+            <div class="control-section">
+                <h3>Event Log</h3>
+                <div class="button-group">
+                    <button id="clearLogBtn" class="btn btn-secondary">
+                        🗑️ Clear Log
+                    </button>
+                    <button id="exportLogBtn" class="btn btn-secondary">
+                        💾 Export Log
+                    </button>
+                </div>
+            </div>
+            <div id="eventLog" class="log-content">
+                <div class="log-entry info">[INFO] Demo page loaded successfully</div>
+                <div class="log-entry info">[INFO] Click Connect to establish WebSocket connection</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include Socket.IO and our streaming client -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='js/streaming-client.js') }}"></script>
+    
+    <script>
+        // Global variables
+        let streamingClient = null;
+        let currentContent = '';
+        let tokenCount = 0;
+        let startTime = null;
+        let typewriterTimer = null;
+        
+        // Initialize demo
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDemo();
+            setupEventHandlers();
+        });
+        
+        function initializeDemo() {
+            log('info', 'Initializing streaming demo...');
+            updateConnectionStatus('disconnected', 'Ready to connect');
+            updateButtons(false, false);
+        }
+        
+        function setupEventHandlers() {
+            // Connection controls
+            document.getElementById('connectBtn').addEventListener('click', connect);
+            document.getElementById('disconnectBtn').addEventListener('click', disconnect);
+            
+            // Stream controls
+            document.getElementById('startStreamBtn').addEventListener('click', startStream);
+            document.getElementById('pauseStreamBtn').addEventListener('click', pauseStream);
+            document.getElementById('resumeStreamBtn').addEventListener('click', resumeStream);
+            document.getElementById('stopStreamBtn').addEventListener('click', stopStream);
+            
+            // Utility controls
+            document.getElementById('clearStreamBtn').addEventListener('click', clearStream);
+            document.getElementById('exportStreamBtn').addEventListener('click', exportStream);
+            document.getElementById('clearLogBtn').addEventListener('click', clearLog);
+            document.getElementById('exportLogBtn').addEventListener('click', exportLog);
+            
+            // Configuration changes
+            document.getElementById('typewriterSpeed').addEventListener('change', updateTypewriterSpeed);
+            document.getElementById('enableTypewriter').addEventListener('change', toggleTypewriter);
+        }
+        
+        function connect() {
+            log('info', 'Attempting to connect to WebSocket server...');
+            
+            streamingClient = new StreamingClient({
+                debug: true,
+                autoConnect: false
+            });
+            
+            // Set up event handlers
+            streamingClient.on('connected', handleConnected);
+            streamingClient.on('disconnected', handleDisconnected);
+            streamingClient.on('streamStarted', handleStreamStarted);
+            streamingClient.on('streamStopped', handleStreamStopped);
+            streamingClient.on('streamPaused', handleStreamPaused);
+            streamingClient.on('streamResumed', handleStreamResumed);
+            streamingClient.on('token', handleToken);
+            streamingClient.on('error', handleError);
+            streamingClient.on('log', handleLog);
+            
+            streamingClient.connect()
+                .then(() => {
+                    log('success', 'Connected successfully');
+                })
+                .catch(error => {
+                    log('error', 'Connection failed: ' + error.message);
+                });
+        }
+        
+        function disconnect() {
+            if (streamingClient) {
+                streamingClient.disconnect();
+                streamingClient = null;
+            }
+        }
+        
+        function startStream() {
+            if (!streamingClient) return;
+            
+            const taskId = document.getElementById('taskId').value;
+            const config = {
+                bufferSize: parseInt(document.getElementById('bufferSize').value),
+                rateLimit: parseInt(document.getElementById('rateLimit').value)
+            };
+            
+            try {
+                streamingClient.startStream(taskId, config);
+                log('info', `Starting stream for task: ${taskId}`);
+            } catch (error) {
+                log('error', 'Failed to start stream: ' + error.message);
+            }
+        }
+        
+        function stopStream() {
+            if (streamingClient) {
+                streamingClient.stopStream();
+            }
+        }
+        
+        function pauseStream() {
+            if (streamingClient) {
+                streamingClient.pauseStream();
+            }
+        }
+        
+        function resumeStream() {
+            if (streamingClient) {
+                streamingClient.resumeStream();
+            }
+        }
+        
+        // Event handlers
+        function handleConnected(data) {
+            updateConnectionStatus('connected', `Connected (${data.socketId})`);
+            updateButtons(true, false);
+            updateMetric('connectionTime', new Date().toLocaleTimeString());
+            log('success', 'WebSocket connection established');
+        }
+        
+        function handleDisconnected(data) {
+            updateConnectionStatus('disconnected', `Disconnected (${data.reason})`);
+            updateButtons(false, false);
+            updateMetric('connectionTime', '-');
+            updateMetric('sessionId', 'None');
+            log('warn', `Disconnected: ${data.reason}`);
+        }
+        
+        function handleStreamStarted(data) {
+            updateConnectionStatus('streaming', 'Streaming Active');
+            updateButtons(true, true);
+            updateMetric('sessionId', data.session_id);
+            updateMetric('streamStatus', 'Active');
+            tokenCount = 0;
+            startTime = Date.now();
+            log('success', `Stream started: ${data.session_id}`);
+        }
+        
+        function handleStreamStopped(data) {
+            updateConnectionStatus('connected', 'Connected');
+            updateButtons(true, false);
+            updateMetric('streamStatus', 'Stopped');
+            log('info', 'Stream stopped');
+        }
+        
+        function handleStreamPaused(data) {
+            updateMetric('streamStatus', 'Paused');
+            log('warn', 'Stream paused');
+        }
+        
+        function handleStreamResumed(data) {
+            updateMetric('streamStatus', 'Active');
+            log('info', 'Stream resumed');
+        }
+        
+        function handleToken(data) {
+            tokenCount++;
+            const tokensPerSecond = startTime ? (tokenCount / ((Date.now() - startTime) / 1000)).toFixed(1) : 0;
+            
+            updateMetric('tokensReceived', tokenCount);
+            updateMetric('averageLatency', data.latency + 'ms');
+            updateMetric('tokensPerSecond', tokensPerSecond);
+            
+            // Add token to display with typewriter effect
+            addTokenToDisplay(data.token);
+        }
+        
+        function handleError(data) {
+            log('error', `Stream error: ${JSON.stringify(data)}`);
+        }
+        
+        function handleLog(data) {
+            // Filter out debug logs unless specifically needed
+            if (data.level !== 'debug') {
+                log(data.level, data.message);
+            }
+        }
+        
+        // Display functions
+        function addTokenToDisplay(token) {
+            const streamContent = document.getElementById('streamContent');
+            const enableTypewriter = document.getElementById('enableTypewriter').checked;
+            const speed = parseInt(document.getElementById('typewriterSpeed').value);
+            
+            if (enableTypewriter && speed > 0) {
+                // Add to queue for typewriter effect
+                addToTypewriterQueue(token);
+            } else {
+                // Add immediately
+                currentContent += token;
+                streamContent.textContent = currentContent;
+                streamContent.scrollTop = streamContent.scrollHeight;
+            }
+        }
+        
+        function addToTypewriterQueue(token) {
+            // Simple typewriter effect
+            const streamContent = document.getElementById('streamContent');
+            const speed = parseInt(document.getElementById('typewriterSpeed').value);
+            
+            let i = 0;
+            function typeChar() {
+                if (i < token.length) {
+                    currentContent += token[i];
+                    streamContent.textContent = currentContent + '|';
+                    i++;
+                    setTimeout(typeChar, speed);
+                } else {
+                    streamContent.textContent = currentContent;
+                    streamContent.scrollTop = streamContent.scrollHeight;
+                }
+            }
+            typeChar();
+        }
+        
+        function updateConnectionStatus(status, message) {
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.className = `status-indicator ${status}`;
+            statusElement.innerHTML = `<div class="status-dot"></div><span>${message}</span>`;
+        }
+        
+        function updateButtons(connected, streaming) {
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('disconnectBtn').disabled = !connected;
+            document.getElementById('startStreamBtn').disabled = !connected || streaming;
+            document.getElementById('pauseStreamBtn').disabled = !connected || !streaming;
+            document.getElementById('resumeStreamBtn').disabled = !connected || !streaming;
+            document.getElementById('stopStreamBtn').disabled = !connected || !streaming;
+        }
+        
+        function updateMetric(metricId, value) {
+            const element = document.getElementById(metricId);
+            if (element) {
+                element.textContent = value;
+            }
+        }
+        
+        function log(level, message) {
+            const logContainer = document.getElementById('eventLog');
+            const timestamp = new Date().toISOString().substr(11, 8);
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${level}`;
+            logEntry.textContent = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // Keep log size manageable
+            while (logContainer.children.length > 100) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+        
+        // Utility functions
+        function clearStream() {
+            currentContent = '';
+            document.getElementById('streamContent').textContent = 'Stream cleared. Start a new stream to see content.';
+            tokenCount = 0;
+            updateMetric('tokensReceived', 0);
+            updateMetric('tokensPerSecond', 0);
+        }
+        
+        function exportStream() {
+            const blob = new Blob([currentContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `stream-export-${new Date().toISOString().substr(0, 19)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function clearLog() {
+            document.getElementById('eventLog').innerHTML = '';
+            log('info', 'Event log cleared');
+        }
+        
+        function exportLog() {
+            const logContent = document.getElementById('eventLog').textContent;
+            const blob = new Blob([logContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `event-log-${new Date().toISOString().substr(0, 19)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function updateTypewriterSpeed() {
+            const speed = parseInt(document.getElementById('typewriterSpeed').value);
+            log('info', `Typewriter speed updated to ${speed}ms`);
+        }
+        
+        function toggleTypewriter() {
+            const enabled = document.getElementById('enableTypewriter').checked;
+            log('info', `Typewriter effect ${enabled ? 'enabled' : 'disabled'}`);
+        }
+        
+        // Demo scenarios
+        function simulateCodeGeneration() {
+            if (!streamingClient || !streamingClient.isConnected) {
+                log('warn', 'Connect to WebSocket first');
+                return;
+            }
+            
+            log('info', 'Simulating code generation scenario...');
+            // This would trigger a real stream in production
+            const demoCode = `
+def fibonacci(n):
+    """Generate Fibonacci sequence up to n terms."""
+    if n <= 0:
+        return []
+    elif n == 1:
+        return [0]
+    elif n == 2:
+        return [0, 1]
+    
+    sequence = [0, 1]
+    for i in range(2, n):
+        sequence.append(sequence[i-1] + sequence[i-2])
+    
+    return sequence
+
+# Example usage
+result = fibonacci(10)
+print(f"First 10 Fibonacci numbers: {result}")
+`;
+            simulateTokenStream(demoCode);
+        }
+        
+        function simulateConversation() {
+            if (!streamingClient || !streamingClient.isConnected) {
+                log('warn', 'Connect to WebSocket first');
+                return;
+            }
+            
+            log('info', 'Simulating conversation scenario...');
+            const conversation = `
+Hello! I'm SwarmDirector, your AI assistant. How can I help you today?
+
+I can assist with:
+• Code generation and review
+• Data analysis and visualization  
+• Technical documentation
+• Problem-solving and debugging
+• Project planning and coordination
+
+What would you like to work on?
+`;
+            simulateTokenStream(conversation);
+        }
+        
+        function simulateAnalysis() {
+            if (!streamingClient || !streamingClient.isConnected) {
+                log('warn', 'Connect to WebSocket first');
+                return;
+            }
+            
+            log('info', 'Simulating analysis scenario...');
+            const analysis = `
+## Data Analysis Report
+
+### Summary
+The dataset contains 10,000 records with the following characteristics:
+
+**Key Findings:**
+• 85% completion rate across all metrics
+• Peak performance observed during Q3
+• Significant correlation between variables A and B (r=0.78)
+
+**Recommendations:**
+1. Increase sampling frequency in underperforming regions
+2. Implement automated quality checks
+3. Consider seasonal adjustments for Q4 projections
+
+### Detailed Metrics
+- Mean response time: 245ms
+- Standard deviation: 67ms
+- 95th percentile: 380ms
+- Error rate: 0.02%
+
+The analysis indicates strong system performance with room for optimization in specific areas.
+`;
+            simulateTokenStream(analysis);
+        }
+        
+        function simulateError() {
+            log('error', 'Simulating error scenario...');
+            if (streamingClient) {
+                streamingClient.emit('streamError', {
+                    type: 'simulation',
+                    message: 'This is a simulated error for demonstration purposes',
+                    code: 'DEMO_ERROR'
+                });
+            }
+        }
+        
+        function simulateTokenStream(text) {
+            // Simulate token-by-token streaming
+            let index = 0;
+            const words = text.split(' ');
+            
+            function sendNextToken() {
+                if (index < words.length) {
+                    const token = (index === 0 ? '' : ' ') + words[index];
+                    handleToken({
+                        token: token,
+                        latency: Math.random() * 50 + 10, // Random latency 10-60ms
+                        timestamp: new Date().toISOString()
+                    });
+                    index++;
+                    setTimeout(sendNextToken, 100 + Math.random() * 200); // Random delay
+                }
+            }
+            
+            sendNextToken();
+        }
+    </script>
+</body>
+</html> 

@@ -57,7 +57,7 @@ class WebSocketHandler:
                     'server_info': {
                         'streaming_enabled': True,
                         'max_buffer_size': self.streaming_manager.config.buffer_size,
-                        'rate_limit': self.streaming_manager.config.rate_limit_tokens_per_second
+                        'rate_limit': self.streaming_manager.config.max_tokens_per_second
                     }
                 })
                 
@@ -101,9 +101,9 @@ class WebSocketHandler:
                 # Create streaming configuration
                 config = StreamingConfig(
                     buffer_size=stream_config.get('buffer_size', 1000),
-                    rate_limit_tokens_per_second=stream_config.get('rate_limit', 50),
+                    max_tokens_per_second=stream_config.get('rate_limit', 50),
                     backpressure_threshold=stream_config.get('backpressure_threshold', 0.8),
-                    backpressure_resume_threshold=stream_config.get('backpressure_resume_threshold', 0.3)
+                    resume_threshold=stream_config.get('backpressure_resume_threshold', 0.3)
                 )
                 
                 # Start streaming session
@@ -117,10 +117,14 @@ class WebSocketHandler:
                     # Join client to session room for targeted messaging
                     join_room(session_id)
                     
+                    # Create response config with both internal and client-friendly names
+                    response_config = config.__dict__.copy()
+                    response_config['rate_limit'] = config.max_tokens_per_second  # Add client-friendly alias
+                    
                     emit('stream_started', {
                         'session_id': session_id,
                         'task_id': task_id,
-                        'config': config.__dict__,
+                        'config': response_config,
                         'timestamp': datetime.utcnow().isoformat()
                     })
                 else:
@@ -142,7 +146,7 @@ class WebSocketHandler:
                     session_id = self.client_sessions[client_id]
                 
                 if session_id:
-                    asyncio.run(self.streaming_manager.stop_session(session_id))
+                    asyncio.run(self.streaming_manager.close_session(session_id))
                     
                     # Clean up client session mapping
                     if client_id in self.client_sessions:
@@ -173,7 +177,9 @@ class WebSocketHandler:
                     session_id = self.client_sessions[client_id]
                 
                 if session_id:
-                    asyncio.run(self.streaming_manager.pause_session(session_id))
+                    session = self.streaming_manager.get_session(session_id)
+                    if session:
+                        asyncio.run(session.pause())
                     
                     emit('stream_paused', {
                         'session_id': session_id,
@@ -197,7 +203,9 @@ class WebSocketHandler:
                     session_id = self.client_sessions[client_id]
                 
                 if session_id:
-                    asyncio.run(self.streaming_manager.resume_session(session_id))
+                    session = self.streaming_manager.get_session(session_id)
+                    if session:
+                        asyncio.run(session.resume())
                     
                     emit('stream_resumed', {
                         'session_id': session_id,
@@ -221,7 +229,9 @@ class WebSocketHandler:
                     session_id = self.client_sessions[client_id]
                 
                 if session_id:
-                    status = asyncio.run(self.streaming_manager.get_session_status(session_id))
+                    session = self.streaming_manager.get_session(session_id)
+                    if session:
+                        status = session.get_status()
                     
                     emit('stream_status', {
                         'session_id': session_id,
@@ -250,7 +260,10 @@ class WebSocketHandler:
                     session_id = self.client_sessions[client_id]
                 
                 if session_id:
-                    metrics = asyncio.run(self.streaming_manager.get_session_metrics(session_id))
+                    session = self.streaming_manager.get_session(session_id)
+                    if session:
+                        status = session.get_status()
+                        metrics = status.get('metrics', {})
                     
                     emit('stream_metrics', {
                         'session_id': session_id,
@@ -279,10 +292,10 @@ class WebSocketHandler:
         """
         try:
             # Create streaming session
-            session_id = await self.streaming_manager.create_session(
-                f"ws_{client_id}_{task_id}",
-                config
+            session = self.streaming_manager.create_session(
+                f"ws_{client_id}_{task_id}"
             )
+            session_id = session.session_id
             
             if not session_id:
                 logger.error(f"Failed to create streaming session for client {client_id}")
@@ -304,7 +317,7 @@ class WebSocketHandler:
                     logger.error(f"Error sending token to client: {str(e)}")
             
             # Register client handler
-            await self.streaming_manager.add_client_handler(session_id, client_handler)
+            session.add_client_handler(client_handler)
             
             logger.info(f"Started streaming session {session_id} for client {client_id}")
             return session_id
@@ -358,7 +371,7 @@ class WebSocketHandler:
         try:
             if client_id in self.client_sessions:
                 session_id = self.client_sessions[client_id]
-                asyncio.create_task(self.streaming_manager.stop_session(session_id))
+                asyncio.create_task(self.streaming_manager.close_session(session_id))
                 del self.client_sessions[client_id]
                 logger.info(f"Cleaned up session for client {client_id}")
                 

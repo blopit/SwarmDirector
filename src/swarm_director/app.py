@@ -21,7 +21,17 @@ socketio = None
 
 def create_app(config_name='default'):
     """Application factory pattern for Flask app creation"""
-    app = Flask(__name__)
+    import os
+    
+    # Get the directory of this file (app.py)
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    template_dir = os.path.join(basedir, 'web', 'templates')
+    static_dir = os.path.join(basedir, 'web', 'static')
+    
+    app = Flask(__name__, 
+                template_folder=template_dir,
+                static_folder=static_dir,
+                static_url_path='/static')
     
     # Load configuration
     from .config import config
@@ -933,6 +943,12 @@ def register_routes(app):
         from flask import render_template
         return render_template('websocket_test.html')
     
+    @app.route('/streaming-demo')
+    def streaming_demo():
+        """Comprehensive streaming demo page"""
+        from flask import render_template
+        return render_template('streaming_demo.html')
+    
     @app.route('/dashboard/analytics')
     def analytics_page():
         """Analytics dashboard page"""
@@ -1438,9 +1454,9 @@ def initialize_streaming(app):
         # Create streaming manager with default configuration
         config = StreamingConfig(
             buffer_size=app.config.get('STREAMING_BUFFER_SIZE', 1000),
-            rate_limit_tokens_per_second=app.config.get('STREAMING_RATE_LIMIT', 50),
+            max_tokens_per_second=app.config.get('STREAMING_RATE_LIMIT', 50),
             backpressure_threshold=app.config.get('STREAMING_BACKPRESSURE_THRESHOLD', 0.8),
-            backpressure_resume_threshold=app.config.get('STREAMING_BACKPRESSURE_RESUME', 0.3)
+            resume_threshold=app.config.get('STREAMING_BACKPRESSURE_RESUME', 0.3)
         )
         
         streaming_manager = StreamingManager(config)
