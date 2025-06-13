@@ -19,6 +19,9 @@ from functools import wraps
 import structlog
 import psutil
 
+# Import the new metrics system at the top
+from .metrics import metrics_collector, get_current_metrics_summary, track_performance_metrics
+
 # Global configuration
 _LOG_CONFIG = {
     'structured': True,
@@ -391,3 +394,96 @@ def log_error_with_context(
 
 # Backward compatibility aliases
 setup_logging = setup_structured_logging 
+
+def log_with_metrics(
+    logger_name: str,
+    level: str,
+    message: str,
+    include_system_metrics: bool = True,
+    include_endpoint_stats: bool = False,
+    **extra_fields
+):
+    """Enhanced logging function that includes performance metrics"""
+    logger = get_logger(logger_name)
+    
+    # Get correlation ID
+    correlation_id = get_correlation_id()
+    
+    # Collect metrics if requested
+    log_data = {}
+    
+    if include_system_metrics:
+        try:
+            system_metrics = metrics_collector.collect_system_metrics(correlation_id)
+            log_data['system_metrics'] = {
+                name: {
+                    'value': metric.value,
+                    'unit': metric.unit,
+                    'tags': metric.tags
+                } for name, metric in system_metrics.items()
+            }
+        except Exception as e:
+            log_data['metrics_error'] = f"Failed to collect system metrics: {e}"
+    
+    if include_endpoint_stats:
+        try:
+            log_data['endpoint_stats'] = metrics_collector.get_all_endpoint_stats()
+        except Exception as e:
+            log_data['endpoint_stats_error'] = f"Failed to collect endpoint stats: {e}"
+    
+    # Add extra fields
+    log_data.update(extra_fields)
+    
+    # Log with appropriate level
+    if level.upper() == 'DEBUG':
+        logger.debug(message, extra={'extra_fields': log_data})
+    elif level.upper() == 'INFO':
+        logger.info(message, extra={'extra_fields': log_data})
+    elif level.upper() == 'WARNING':
+        logger.warning(message, extra={'extra_fields': log_data})
+    elif level.upper() == 'ERROR':
+        logger.error(message, extra={'extra_fields': log_data})
+    else:
+        logger.info(message, extra={'extra_fields': log_data})
+
+def log_performance_summary(logger_name: str = 'performance'):
+    """Log a comprehensive performance summary"""
+    logger = get_logger(logger_name)
+    
+    try:
+        summary = get_current_metrics_summary()
+        logger.info(
+            "Performance metrics summary",
+            extra={'extra_fields': {
+                'metrics_summary': summary,
+                'summary_type': 'comprehensive_performance'
+            }}
+        )
+    except Exception as e:
+        logger.error(f"Failed to log performance summary: {e}")
+
+def setup_metrics_integration():
+    """Set up integration between metrics and logging systems"""
+    # Configure periodic metrics collection
+    import threading
+    import time
+    
+    def periodic_metrics_collection():
+        """Periodically collect and log system metrics"""
+        while True:
+            try:
+                correlation_id = set_correlation_id()
+                metrics_collector.collect_system_metrics(correlation_id)
+                
+                # Log summary every 5 minutes
+                log_performance_summary()
+                
+            except Exception as e:
+                logger = get_logger('metrics_integration')
+                logger.error(f"Periodic metrics collection failed: {e}")
+            
+            time.sleep(300)  # 5 minutes
+    
+    # Start background thread for periodic collection
+    metrics_thread = threading.Thread(target=periodic_metrics_collection, daemon=True)
+    metrics_thread.start() 

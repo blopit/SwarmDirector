@@ -15,6 +15,10 @@ from .models.base import db
 migrate = Migrate()
 mail = Mail()
 
+# Import metrics system
+from .utils.metrics import get_current_metrics_summary, metrics_collector, track_performance_metrics
+from .utils.logging import setup_metrics_integration
+
 # Initialize streaming manager (will be configured in create_app)
 streaming_manager = None
 socketio = None
@@ -47,6 +51,9 @@ def create_app(config_name='default'):
     
     # Configure logging
     setup_logging(app)
+    
+    # Setup metrics integration
+    setup_metrics_integration()
     
     # Register error handlers
     register_error_handlers(app)
@@ -138,7 +145,84 @@ def register_routes(app):
             }
         )
     
+    # Performance Metrics API Endpoints
+    @app.route('/api/metrics/summary')
+    @track_performance_metrics(endpoint='/api/metrics/summary')
+    def get_metrics_summary():
+        """Get comprehensive metrics summary"""
+        try:
+            summary = get_current_metrics_summary()
+            return jsonify({
+                'success': True,
+                'data': summary
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/metrics/system')
+    @track_performance_metrics(endpoint='/api/metrics/system')
+    def get_system_metrics():
+        """Get current system metrics"""
+        try:
+            correlation_id = request.headers.get('X-Correlation-ID')
+            system_metrics = metrics_collector.collect_system_metrics(correlation_id)
+            
+            metrics_data = {
+                name: {
+                    'value': metric.value,
+                    'unit': metric.unit,
+                    'timestamp': metric.timestamp.isoformat(),
+                    'tags': metric.tags
+                } for name, metric in system_metrics.items()
+            }
+            
+            return jsonify({
+                'success': True,
+                'data': metrics_data
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/metrics/endpoints')
+    @track_performance_metrics(endpoint='/api/metrics/endpoints')
+    def get_endpoint_metrics():
+        """Get endpoint performance statistics"""
+        try:
+            endpoint_stats = metrics_collector.get_all_endpoint_stats()
+            return jsonify({
+                'success': True,
+                'data': endpoint_stats
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/metrics/endpoint/<path:endpoint_name>')
+    @track_performance_metrics(endpoint='/api/metrics/endpoint/*')
+    def get_endpoint_metric(endpoint_name):
+        """Get metrics for a specific endpoint"""
+        try:
+            stats = metrics_collector.get_endpoint_stats(endpoint_name)
+            return jsonify({
+                'success': True,
+                'data': stats
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
     @app.route('/task', methods=['POST'])
+    @track_performance_metrics(endpoint='/task')
     def submit_task():
         """Enhanced task submission endpoint with comprehensive validation"""
         try:
