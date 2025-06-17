@@ -3,8 +3,9 @@ Task model for tracking work assignments and progress
 """
 
 from .base import db, BaseModel
-from sqlalchemy import Enum
+from sqlalchemy import Enum, Index
 import enum
+from datetime import datetime
 
 class TaskStatus(enum.Enum):
     """Enumeration for task status"""
@@ -66,6 +67,28 @@ class Task(BaseModel):
     progress_percentage = db.Column(db.Integer, default=0)
     last_activity = db.Column(db.DateTime)
     
+    # Analytics and performance tracking fields
+    complexity_score = db.Column(db.Integer)  # 1-10 scale for task complexity
+    performance_metrics = db.Column(db.JSON)  # Detailed performance data
+    queue_time = db.Column(db.Integer)  # Time spent in queue (minutes)
+    processing_time = db.Column(db.Integer)  # Time spent processing (minutes)
+    retry_count = db.Column(db.Integer, default=0)  # Number of retry attempts
+    quality_score = db.Column(db.Float)  # Quality assessment score (0-1)
+    
+    # Timing analytics
+    started_at = db.Column(db.DateTime)  # When task processing started
+    completed_at = db.Column(db.DateTime)  # When task was completed
+    first_response_time = db.Column(db.Float)  # Time to first response (seconds)
+    
+    # Indexes for efficient analytics queries
+    __table_args__ = (
+        Index('idx_task_status_created', 'status', 'created_at'),
+        Index('idx_task_type_priority', 'type', 'priority'),
+        Index('idx_task_assigned_agent', 'assigned_agent_id'),
+        Index('idx_task_completed_at', 'completed_at'),
+        Index('idx_task_analytics_lookup', 'status', 'type', 'created_at'),
+    )
+    
     def __repr__(self):
         return f'<Task {self.title} ({self.status.value})>'
     
@@ -91,16 +114,30 @@ class Task(BaseModel):
     
     def start_progress(self):
         """Mark task as in progress"""
+        if not self.started_at:
+            self.started_at = datetime.utcnow()
+            if self.created_at:
+                self.queue_time = int((self.started_at - self.created_at).total_seconds() / 60)
+        
         self.status = TaskStatus.IN_PROGRESS
-        self.last_activity = db.func.now()
+        self.last_activity = datetime.utcnow()
         self.save()
     
     def complete_task(self, output_data=None):
         """Mark task as completed"""
+        completion_time = datetime.utcnow()
+        self.completed_at = completion_time
         self.status = TaskStatus.COMPLETED
         self.progress_percentage = 100
+        
+        # Calculate processing time
+        if self.started_at:
+            self.processing_time = int((completion_time - self.started_at).total_seconds() / 60)
+            self.actual_duration = self.processing_time
+        
         if output_data:
             self.output_data = output_data
+        
         self.save()
         
         # Update agent statistics
@@ -111,8 +148,16 @@ class Task(BaseModel):
     def fail_task(self, error_details=None):
         """Mark task as failed"""
         self.status = TaskStatus.FAILED
+        self.completed_at = datetime.utcnow()
+        self.retry_count += 1
+        
         if error_details:
             self.error_details = error_details
+        
+        # Calculate partial processing time
+        if self.started_at:
+            self.processing_time = int((self.completed_at - self.started_at).total_seconds() / 60)
+        
         self.save()
     
     def add_subtask(self, subtask):
@@ -138,4 +183,29 @@ class Task(BaseModel):
         if self.parent_task and self.parent_task.status != TaskStatus.COMPLETED:
             return False
             
-        return True 
+        return True
+
+    def calculate_analytics(self):
+        """Calculate task performance analytics."""
+        analytics = {
+            'completion_rate': self.progress_percentage,
+            'time_efficiency': None,
+            'status_transitions': self.retry_count,
+            'queue_efficiency': None,
+            'quality_metrics': {
+                'complexity_score': self.complexity_score,
+                'quality_score': self.quality_score,
+                'retry_rate': self.retry_count
+            }
+        }
+        
+        # Calculate time efficiency
+        if self.estimated_duration and self.actual_duration:
+            analytics['time_efficiency'] = min(1.0, self.estimated_duration / self.actual_duration)
+        
+        # Calculate queue efficiency
+        if self.queue_time and self.processing_time:
+            total_time = self.queue_time + self.processing_time
+            analytics['queue_efficiency'] = self.processing_time / total_time if total_time > 0 else 0
+        
+        return analytics 

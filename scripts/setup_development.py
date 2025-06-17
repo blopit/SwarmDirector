@@ -16,6 +16,14 @@ project_root = Path(__file__).parent.parent
 src_path = project_root / "src"
 sys.path.insert(0, str(src_path))
 
+# Task management integration
+try:
+    from swarm_director.utils.automation import AutomationIntegrator, AutomationEventType, WorkflowStatus
+    TASK_INTEGRATION_AVAILABLE = True
+except ImportError:
+    TASK_INTEGRATION_AVAILABLE = False
+    print("⚠️  Task management integration not available")
+
 def run_command(command, description):
     """Run a shell command and handle errors."""
     print(f"🔧 {description}...")
@@ -30,6 +38,17 @@ def run_command(command, description):
         if e.stderr:
             print(f"stderr: {e.stderr}")
         return False
+
+def trigger_task_event(event_type, task_id=None, status=None, metadata=None):
+    """Trigger task management events if integration is available."""
+    if not TASK_INTEGRATION_AVAILABLE:
+        return
+    
+    try:
+        from swarm_director.utils.automation import trigger_task_automation
+        trigger_task_automation(event_type, task_id or "dev_setup", metadata or {})
+    except Exception as e:
+        print(f"⚠️  Task event trigger failed: {e}")
 
 def check_python_version():
     """Check if Python version is compatible."""
@@ -56,12 +75,21 @@ def install_dependencies():
     requirements_file = project_root / "requirements.txt"
     if not requirements_file.exists():
         print("❌ requirements.txt not found")
+        trigger_task_event(AutomationEventType.TASK_FAILED, metadata={"reason": "requirements.txt not found"})
         return False
     
-    return run_command(
+    trigger_task_event(AutomationEventType.TASK_CREATED, metadata={"action": "installing_dependencies"})
+    success = run_command(
         f"pip install -r {requirements_file}",
         "Installing Python dependencies"
     )
+    
+    if success:
+        trigger_task_event(AutomationEventType.TASK_COMPLETED, metadata={"action": "dependencies_installed"})
+    else:
+        trigger_task_event(AutomationEventType.TASK_FAILED, metadata={"action": "dependency_installation_failed"})
+    
+    return success
 
 def create_env_file():
     """Create .env file with default development settings."""
@@ -108,6 +136,7 @@ MAX_CONCURRENT_TASKS=10
 def setup_database():
     """Initialize the database."""
     print("🗄️ Setting up database...")
+    trigger_task_event(AutomationEventType.DEPLOYMENT_STARTED, metadata={"action": "database_setup"})
     
     # Ensure database directory exists
     db_dir = project_root / "database" / "data"
@@ -122,9 +151,11 @@ def setup_database():
         with app.app_context():
             db.create_all()
             print("✅ Database tables created successfully")
+            trigger_task_event(AutomationEventType.DEPLOYMENT_COMPLETED, metadata={"action": "database_initialized"})
             return True
     except Exception as e:
         print(f"❌ Database setup failed: {e}")
+        trigger_task_event(AutomationEventType.DEPLOYMENT_FAILED, metadata={"action": "database_setup", "error": str(e)})
         return False
 
 def create_sample_data():
@@ -231,11 +262,19 @@ def main():
     print("🚀 SwarmDirector Development Environment Setup")
     print("=" * 50)
     
+    # Initialize task tracking for development setup
+    trigger_task_event(AutomationEventType.TASK_CREATED, task_id="dev_setup", 
+                      metadata={"workflow": "development_environment_setup"})
+    
     # Check prerequisites
     if not check_python_version():
+        trigger_task_event(AutomationEventType.TASK_FAILED, task_id="dev_setup",
+                          metadata={"reason": "python_version_incompatible"})
         sys.exit(1)
     
     if not check_virtual_environment():
+        trigger_task_event(AutomationEventType.TASK_FAILED, task_id="dev_setup",
+                          metadata={"reason": "virtual_environment_check_failed"})
         sys.exit(1)
     
     # Setup steps
@@ -258,6 +297,8 @@ def main():
         for step in failed_steps:
             print(f"  • {step}")
         print("\nPlease review the errors above and try again.")
+        trigger_task_event(AutomationEventType.TASK_FAILED, task_id="dev_setup",
+                          metadata={"failed_steps": failed_steps})
         sys.exit(1)
     else:
         print("🎉 Development environment setup completed successfully!")
@@ -267,6 +308,8 @@ def main():
         print("3. Check the dashboard: http://localhost:5000/dashboard")
         print("4. Try the demo: http://localhost:5000/demo")
         print("\nFor more information, see docs/development/getting_started.md")
+        trigger_task_event(AutomationEventType.TASK_COMPLETED, task_id="dev_setup",
+                          metadata={"setup_successful": True})
 
 if __name__ == "__main__":
     main()

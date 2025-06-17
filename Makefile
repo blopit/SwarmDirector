@@ -1,7 +1,30 @@
 # SwarmDirector Makefile
 # Development and testing commands
 
-.PHONY: help test test-verbose test-coverage test-standalone test-single install-deps clean setup
+.PHONY: help test test-verbose test-coverage test-standalone test-single install-deps clean setup task-trigger
+
+# Task Management Integration
+TASK_INTEGRATION_SCRIPT := python -c "import sys; sys.path.insert(0, 'src'); \
+	try: \
+		from swarm_director.utils.automation import trigger_task_automation, AutomationEventType; \
+		trigger_task_automation(AutomationEventType.$(EVENT_TYPE), '$(TASK_ID)', $(METADATA)); \
+		print('✅ Task event triggered: $(EVENT_TYPE)'); \
+	except Exception as e: \
+		print('⚠️  Task integration not available:', e);"
+
+# Helper targets for task management
+task-start:
+	@$(call task-event,TASK_STARTED,makefile_$(TARGET),'{"target":"$(TARGET)","timestamp":"$(shell date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"}')
+
+task-complete:
+	@$(call task-event,TASK_COMPLETED,makefile_$(TARGET),'{"target":"$(TARGET)","success":true,"timestamp":"$(shell date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"}')
+
+task-fail:
+	@$(call task-event,TASK_FAILED,makefile_$(TARGET),'{"target":"$(TARGET)","success":false,"timestamp":"$(shell date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"}')
+
+define task-event
+	@EVENT_TYPE=$(1) TASK_ID=$(2) METADATA=$(3) $(TASK_INTEGRATION_SCRIPT)
+endef
 
 # Default target
 help:
@@ -16,32 +39,53 @@ help:
 	@echo "setup              - Set up development environment"
 	@echo "clean              - Clean up generated files"
 
-# Test targets
+# Test targets with task integration
 test:
-	@python scripts/run_tests.py
+	@$(call task-event,TASK_STARTED,make_test,'{"action":"test","type":"all"}')
+	@python scripts/run_tests.py && \
+		$(call task-event,TASK_COMPLETED,make_test,'{"action":"test","success":true}') || \
+		($(call task-event,TASK_FAILED,make_test,'{"action":"test","success":false}') && exit 1)
 
 test-verbose:
-	@python scripts/run_tests.py -v
+	@$(call task-event,TASK_STARTED,make_test_verbose,'{"action":"test","type":"verbose"}')
+	@python scripts/run_tests.py -v && \
+		$(call task-event,TASK_COMPLETED,make_test_verbose,'{"action":"test","success":true}') || \
+		($(call task-event,TASK_FAILED,make_test_verbose,'{"action":"test","success":false}') && exit 1)
 
 test-coverage:
-	@python scripts/run_tests.py -c
+	@$(call task-event,TASK_STARTED,make_test_coverage,'{"action":"test","type":"coverage"}')
+	@python scripts/run_tests.py -c && \
+		$(call task-event,TASK_COMPLETED,make_test_coverage,'{"action":"test","success":true}') || \
+		($(call task-event,TASK_FAILED,make_test_coverage,'{"action":"test","success":false}') && exit 1)
 
 test-standalone:
-	@python scripts/run_tests.py -s
+	@$(call task-event,TASK_STARTED,make_test_standalone,'{"action":"test","type":"standalone"}')
+	@python scripts/run_tests.py -s && \
+		$(call task-event,TASK_COMPLETED,make_test_standalone,'{"action":"test","success":true}') || \
+		($(call task-event,TASK_FAILED,make_test_standalone,'{"action":"test","success":false}') && exit 1)
 
 test-single:
-	@python scripts/run_tests.py -t $(TEST)
+	@$(call task-event,TASK_STARTED,make_test_single,'{"action":"test","type":"single","target":"$(TEST)"}')
+	@python scripts/run_tests.py -t $(TEST) && \
+		$(call task-event,TASK_COMPLETED,make_test_single,'{"action":"test","success":true}') || \
+		($(call task-event,TASK_FAILED,make_test_single,'{"action":"test","success":false}') && exit 1)
 
-# Development setup
+# Development setup with task integration
 install-deps:
-	@python scripts/run_tests.py --install-deps
-	@pip install -r requirements.txt
+	@$(call task-event,BUILD_STARTED,make_install_deps,'{"action":"install_dependencies"}')
+	@python scripts/run_tests.py --install-deps && pip install -r requirements.txt && \
+		$(call task-event,BUILD_COMPLETED,make_install_deps,'{"action":"install_dependencies","success":true}') || \
+		($(call task-event,BUILD_FAILED,make_install_deps,'{"action":"install_dependencies","success":false}') && exit 1)
 
 setup:
 	@echo "Setting up SwarmDirector development environment..."
-	@pip install -r requirements.txt
-	@python scripts/run_tests.py --install-deps
-	@echo "Setup complete! Run 'make test' to verify installation."
+	@$(call task-event,DEPLOYMENT_STARTED,make_setup,'{"action":"development_setup"}')
+	@pip install -r requirements.txt && \
+	 python scripts/run_tests.py --install-deps && \
+	 python scripts/setup_development.py && \
+	 echo "Setup complete! Run 'make test' to verify installation." && \
+		$(call task-event,DEPLOYMENT_COMPLETED,make_setup,'{"action":"development_setup","success":true}') || \
+		($(call task-event,DEPLOYMENT_FAILED,make_setup,'{"action":"development_setup","success":false}') && exit 1)
 
 # Cleanup
 clean:

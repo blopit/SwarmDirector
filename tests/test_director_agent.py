@@ -253,7 +253,8 @@ class TestTaskEndpoint:
             data = response.get_json()
             # Check for routing_result in the nested data structure
             routing_result = data['data']['routing_result']
-            routed_to = routing_result.get('routed_to') or routing_result.get('department')
+            # The routing result uses 'department' key, not 'routed_to'
+            routed_to = routing_result.get('department') or routing_result.get('routed_to')
             assert routed_to == expected_dept
 
 

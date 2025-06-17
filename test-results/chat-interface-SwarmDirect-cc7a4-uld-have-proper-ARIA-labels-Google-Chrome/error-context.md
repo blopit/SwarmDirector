@@ -1,19 +1,17 @@
 # Page snapshot
 
 ```yaml
-- banner:
-  - img
-  - heading "SwarmDirector Chat" [level=1]
-  - paragraph: AI Agent System
-  - text: connected
-- img
-- heading "Welcome to SwarmDirector" [level=3]
-- paragraph: Start a conversation with our AI agent system
-- textbox "Type your message..."
-- button "Send" [disabled]
-- heading "System Activity" [level=3]
-- button:
-  - img
-- button "Clear Log"
-- button "Export"
+- heading "This site can’t be reached" [level=1]
+- paragraph:
+  - strong: 127.0.0.1
+  - text: refused to connect.
+- paragraph: "Try:"
+- list:
+  - listitem: Checking the connection
+  - listitem:
+    - link "Checking the proxy and the firewall":
+      - /url: "#buttons"
+- text: ERR_CONNECTION_REFUSED
+- button "Reload"
+- button "Details"
 ```

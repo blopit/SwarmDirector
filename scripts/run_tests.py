@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Test Runner Script for SwarmDirector
 Runs all tests with comprehensive reporting and proper setup
@@ -18,6 +19,24 @@ sys.path.insert(0, str(project_root))
 src_path = project_root / "src"
 sys.path.insert(0, str(src_path))
 
+# Task management integration
+try:
+    from swarm_director.utils.automation import AutomationIntegrator, AutomationEventType, WorkflowStatus
+    TASK_INTEGRATION_AVAILABLE = True
+except ImportError:
+    TASK_INTEGRATION_AVAILABLE = False
+    print("⚠️  Task management integration not available")
+
+def trigger_task_event(event_type, task_id=None, status=None, metadata=None):
+    """Trigger task management events if integration is available."""
+    if not TASK_INTEGRATION_AVAILABLE:
+        return
+    
+    try:
+        from swarm_director.utils.automation import trigger_task_automation
+        trigger_task_automation(event_type, task_id or "test_run", metadata or {})
+    except Exception as e:
+        print(f"⚠️  Task event trigger failed: {e}")
 
 def check_pytest_installation():
     """Check if pytest is installed, install if missing"""
@@ -39,6 +58,10 @@ def run_pytest_tests(verbose=False, coverage=False, specific_test=None):
     """Run tests using pytest"""
     print("🧪 Running tests with pytest...")
     print("=" * 60)
+    
+    # Report test start
+    trigger_task_event(AutomationEventType.TASK_STARTED, task_id="pytest_run", 
+                      metadata={"test_type": "pytest", "coverage": coverage, "specific_test": specific_test})
     
     # Build pytest command
     cmd = [sys.executable, "-m", "pytest"]
@@ -67,9 +90,20 @@ def run_pytest_tests(verbose=False, coverage=False, specific_test=None):
     
     try:
         result = subprocess.run(cmd, cwd=project_root, capture_output=False, env=env)
-        return result.returncode == 0
+        success = result.returncode == 0
+        
+        if success:
+            trigger_task_event(AutomationEventType.TASK_COMPLETED, task_id="pytest_run",
+                              metadata={"test_passed": True, "exit_code": result.returncode})
+        else:
+            trigger_task_event(AutomationEventType.TASK_FAILED, task_id="pytest_run",
+                              metadata={"test_passed": False, "exit_code": result.returncode})
+        
+        return success
     except subprocess.CalledProcessError as e:
         print(f"❌ pytest execution failed: {e}")
+        trigger_task_event(AutomationEventType.TASK_FAILED, task_id="pytest_run",
+                          metadata={"error": str(e), "execution_failed": True})
         return False
 
 
@@ -141,6 +175,10 @@ def main():
     print(f"🐍 Python version: {sys.version}")
     print(f"📂 Source path: {src_path}")
     
+    # Initialize task tracking for test run
+    trigger_task_event(AutomationEventType.TASK_STARTED, task_id="test_suite", 
+                      metadata={"test_runner": "main", "args": vars(args)})
+    
     # Create reports directory
     reports_dir = create_reports_directory()
     print(f"📊 Reports directory: {reports_dir}")
@@ -149,6 +187,8 @@ def main():
     if args.install_deps or not args.standalone:
         if not check_pytest_installation():
             print("❌ Cannot proceed without pytest")
+            trigger_task_event(AutomationEventType.TASK_FAILED, task_id="test_suite",
+                              metadata={"reason": "pytest_installation_failed"})
             return False
     
     success = True
@@ -171,8 +211,12 @@ def main():
         print("🎉 All tests passed!")
         if args.coverage:
             print(f"📊 Coverage report available at: {reports_dir}/coverage/index.html")
+        trigger_task_event(AutomationEventType.TASK_COMPLETED, task_id="test_suite",
+                          metadata={"all_tests_passed": True, "coverage_enabled": args.coverage})
     else:
         print("❌ Some tests failed. Check output above for details.")
+        trigger_task_event(AutomationEventType.TASK_FAILED, task_id="test_suite",
+                          metadata={"tests_failed": True})
     
     print("=" * 60)
     return success

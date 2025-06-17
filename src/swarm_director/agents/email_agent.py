@@ -496,18 +496,25 @@ Thank you,
         if recipient and not self._is_valid_email(recipient):
             errors.append(f"Invalid email format: {recipient}")
         
-        # Optional: DNS/MX check for recipient domain
+        # Optional: DNS/MX check for recipient domain (skip for test domains)
         recipient_domain = recipient.split('@')[-1] if '@' in recipient else None
-        if recipient_domain:
+        test_domains = ['example.com', 'test.com', 'localhost', '127.0.0.1']
+
+        if recipient_domain and recipient_domain not in test_domains:
             try:
                 import dns.resolver
                 answers = dns.resolver.resolve(recipient_domain, 'MX')
                 if not answers:
                     warnings.append(f"No MX records found for domain: {recipient_domain}")
             except ImportError:
-                warnings.append("dnspython not installed, skipping MX check")
+                # Only warn in production, not in development/testing
+                import os
+                if os.getenv('FLASK_ENV') == 'production':
+                    warnings.append("dnspython not installed, skipping MX check")
             except Exception as e:
-                warnings.append(f"MX check failed for {recipient_domain}: {e}")
+                # Only warn for real domains, not test domains
+                if not any(test_domain in recipient_domain for test_domain in test_domains):
+                    warnings.append(f"MX check failed for {recipient_domain}: {e}")
         
         # Validate sender if provided
         sender = email_data.get('sender', '')

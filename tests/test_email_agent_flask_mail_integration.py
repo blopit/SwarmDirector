@@ -49,13 +49,13 @@ class TestEmailAgentFlaskMailIntegration:
             mock.save = Mock()
             return mock
 
-    @patch('flask_mail.Mail')
-    def test_send_via_flask_mail_success(self, mock_mail_class, app, mock_email_message):
+    def test_send_via_flask_mail_success(self, app, mock_email_message):
         """Test successful email sending via Flask-Mail"""
         with app.app_context():
+            # Mock Flask-Mail directly in the app extensions
             mock_mail = MagicMock()
-            mock_mail_class.return_value = mock_mail
-            app.extensions['mail'] = mock_mail  # Patch the extension
+            app.extensions['mail'] = mock_mail
+
             from src.swarm_director.agents.email_agent import EmailAgent
             from src.swarm_director.utils.autogen_integration import AutoGenConfig
             mock_db_agent = Mock()
@@ -65,6 +65,10 @@ class TestEmailAgentFlaskMailIntegration:
                 config=AutoGenConfig(temperature=0.3, max_tokens=1500),
                 db_agent=mock_db_agent
             )
+
+            # Mock the send method to succeed
+            mock_mail.send = Mock()
+
             result = agent._send_via_flask_mail(
                 recipient="test@example.com",
                 subject="Test Email",

@@ -1,0 +1,262 @@
+# SwarmDirector Workflow Configuration
+# Enhanced task management system automation settings
+
+workflow_config:
+  version: "2.1"
+  updated: "2025-06-13T15:05:22EDT"
+  
+  # Task management integration settings
+  task_integration:
+    auto_create_tasks: true
+    status_sync: true
+    analytics_tracking: true
+    notification_hooks: true
+    real_time_updates: true
+    
+    # Task creation defaults
+    default_priority: "medium"
+    default_assignee: "automation_system"
+    auto_assign_agents: true
+    
+    # Status synchronization
+    sync_interval: 30  # seconds
+    sync_timeout: 10   # seconds
+    max_retry_attempts: 3
+    
+    # Analytics tracking
+    track_performance: true
+    track_dependencies: true
+    track_completion_times: true
+    generate_insights: true
+
+  # Automation event triggers
+  triggers:
+    - name: "task_status_change"
+      event: "task.status.updated"
+      enabled: true
+      conditions:
+        - field: "status"
+          operator: "in"
+          value: ["done", "failed", "cancelled"]
+      actions:
+        - "update_analytics"
+        - "send_notifications"
+        - "trigger_dependent_tasks"
+        - "generate_completion_report"
+      timeout: 30
+      
+    - name: "task_creation"
+      event: "task.created"
+      enabled: true
+      conditions:
+        - field: "type"
+          operator: "not_equals"
+          value: "automation"
+      actions:
+        - "assign_default_agent"
+        - "create_analytics_entry"
+        - "send_creation_notification"
+      timeout: 15
+      
+    - name: "deployment_complete"
+      event: "deployment.success"
+      enabled: true
+      actions:
+        - "create_deployment_task"
+        - "update_project_status"
+        - "generate_deployment_report"
+        - "notify_stakeholders"
+      timeout: 60
+      
+    - name: "deployment_failed"
+      event: "deployment.failure"
+      enabled: true
+      actions:
+        - "create_incident_task"
+        - "alert_development_team"
+        - "generate_failure_report"
+        - "trigger_rollback_workflow"
+      timeout: 120
+      
+    - name: "test_suite_completion"
+      event: "testing.completed"
+      enabled: true
+      conditions:
+        - field: "test_result"
+          operator: "equals"
+          value: "passed"
+      actions:
+        - "update_task_status"
+        - "trigger_deployment_workflow"
+        - "generate_test_report"
+      timeout: 45
+      
+    - name: "critical_error"
+      event: "system.error.critical"
+      enabled: true
+      priority: "high"
+      actions:
+        - "create_emergency_task"
+        - "alert_on_call_team"
+        - "trigger_incident_response"
+        - "log_critical_event"
+      timeout: 300
+
+  # Integration endpoints
+  endpoints:
+    task_webhook: "/api/webhooks/task"
+    analytics_webhook: "/api/webhooks/analytics"
+    status_webhook: "/api/webhooks/status"
+    deployment_webhook: "/api/webhooks/deployment"
+    notification_webhook: "/api/webhooks/notification"
+    
+    # External integrations
+    slack_webhook: "${SLACK_WEBHOOK_URL}"
+    github_webhook: "${GITHUB_WEBHOOK_URL}"
+    email_service: "${EMAIL_SERVICE_URL}"
+
+  # Monitoring and health check configuration
+  monitoring:
+    enabled: true
+    health_check_interval: 300  # seconds (5 minutes)
+    performance_tracking: true
+    error_tracking: true
+    
+    # Alert thresholds
+    alert_thresholds:
+      task_failure_rate: 0.15      # 15% failure rate triggers alert
+      response_time: 5000          # 5 seconds response time limit
+      queue_depth: 150             # Maximum pending task queue depth
+      error_rate: 0.05             # 5% error rate triggers alert
+      cpu_usage: 0.80              # 80% CPU usage threshold
+      memory_usage: 0.85           # 85% memory usage threshold
+    
+    # Health check endpoints
+    health_endpoints:
+      - "/api/health"
+      - "/api/health/database"
+      - "/api/health/automation"
+      - "/api/health/analytics"
+
+  # Workflow execution settings
+  execution:
+    max_concurrent_workflows: 15
+    workflow_timeout: 1800       # 30 minutes
+    retry_failed_workflows: true
+    max_retry_attempts: 3
+    retry_delay: 60              # seconds
+    
+    # Execution priority levels
+    priority_levels:
+      critical: 1
+      high: 2
+      medium: 3
+      low: 4
+    
+    # Resource allocation
+    resource_limits:
+      max_cpu_per_workflow: 0.5   # 50% CPU per workflow
+      max_memory_per_workflow: 1024  # 1GB memory per workflow
+      max_execution_time: 3600    # 1 hour maximum execution
+
+  # Notification settings
+  notifications:
+    enabled: true
+    channels:
+      - type: "email"
+        enabled: true
+        recipients: ["admin@swarmdirector.com"]
+        events: ["task_failed", "deployment_failed", "critical_error"]
+        
+      - type: "slack"
+        enabled: true
+        channel: "#swarmdirector-alerts"
+        events: ["deployment_complete", "test_failure", "critical_error"]
+        
+      - type: "webhook"
+        enabled: true
+        url: "${CUSTOM_WEBHOOK_URL}"
+        events: ["all"]
+        
+    # Notification templates
+    templates:
+      task_completed: "Task '{task_title}' completed successfully"
+      task_failed: "Task '{task_title}' failed: {error_message}"
+      deployment_success: "Deployment to {environment} completed successfully"
+      deployment_failure: "Deployment to {environment} failed: {error_message}"
+
+  # Security and authentication
+  security:
+    webhook_authentication: true
+    api_key_required: true
+    rate_limiting: true
+    max_requests_per_minute: 100
+    
+    # Webhook security
+    verify_signatures: true
+    webhook_secret: "${WEBHOOK_SECRET}"
+    allowed_ips: []  # Empty array allows all IPs
+    
+    # API security
+    require_https: true
+    validate_origins: true
+    allowed_origins: 
+      - "http://localhost:5000"
+      - "https://swarmdirector.com"
+
+  # Logging and audit
+  logging:
+    level: "INFO"
+    log_workflow_events: true
+    log_api_requests: true
+    log_automation_triggers: true
+    audit_trail: true
+    
+    # Log retention
+    retention_days: 90
+    compress_old_logs: true
+    
+    # Log destinations
+    destinations:
+      - type: "file"
+        path: "logs/workflow.log"
+        max_size: "100MB"
+        max_files: 10
+        
+      - type: "database"
+        table: "workflow_logs"
+        enabled: true
+        
+      - type: "external"
+        url: "${LOG_AGGREGATION_URL}"
+        enabled: false
+
+# Environment-specific overrides
+environments:
+  development:
+    monitoring:
+      health_check_interval: 60
+    execution:
+      max_concurrent_workflows: 5
+    notifications:
+      enabled: false
+      
+  staging:
+    monitoring:
+      alert_thresholds:
+        task_failure_rate: 0.20
+    notifications:
+      channels:
+        - type: "slack"
+          channel: "#staging-alerts"
+          
+  production:
+    monitoring:
+      alert_thresholds:
+        task_failure_rate: 0.10
+        response_time: 3000
+    security:
+      rate_limiting: true
+      max_requests_per_minute: 200
+    logging:
+      level: "WARNING" 

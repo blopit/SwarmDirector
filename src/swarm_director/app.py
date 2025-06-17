@@ -845,6 +845,274 @@ def register_routes(app):
                 'message': str(e)
             }), 500
 
+    # ===== TASK ANALYTICS ROUTES =====
+    
+    @app.route('/api/analytics/tasks/metrics', methods=['GET'])
+    def get_task_analytics_metrics():
+        """Get comprehensive task analytics metrics"""
+        try:
+            from .analytics.engine import create_analytics_engine
+            from datetime import datetime, timedelta
+            
+            # Get query parameters
+            days = request.args.get('days', 30, type=int)
+            start_date = request.args.get('start_date')
+            end_date = request.args.get('end_date')
+            
+            # Calculate time range
+            if start_date and end_date:
+                start_time = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                end_time = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            else:
+                end_time = datetime.utcnow()
+                start_time = end_time - timedelta(days=days)
+            
+            time_range = (start_time, end_time)
+            
+            # Create analytics engine and collect metrics
+            analytics_engine = create_analytics_engine()
+            metrics = analytics_engine.collect_task_metrics(time_range)
+            
+            return jsonify({
+                'status': 'success',
+                'metrics': metrics,
+                'time_range': {
+                    'start': start_time.isoformat(),
+                    'end': end_time.isoformat(),
+                    'days': days
+                }
+            })
+        except Exception as e:
+            app.logger.error(f'Error fetching task analytics metrics: {e}')
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/analytics/tasks/insights', methods=['GET'])
+    def get_task_analytics_insights():
+        """Get task analytics insights and recommendations"""
+        try:
+            from .analytics.engine import create_analytics_engine
+            from datetime import datetime, timedelta
+            
+            # Get query parameters
+            days = request.args.get('days', 30, type=int)
+            priority_filter = request.args.get('priority')
+            
+            # Calculate time range
+            end_time = datetime.utcnow()
+            start_time = end_time - timedelta(days=days)
+            time_range = (start_time, end_time)
+            
+            # Create analytics engine
+            analytics_engine = create_analytics_engine()
+            
+            # Collect metrics and generate insights
+            metrics = analytics_engine.collect_task_metrics(time_range)
+            insights = analytics_engine.generate_insights(metrics)
+            
+            # Filter insights by priority if requested
+            if priority_filter:
+                insights = [insight for insight in insights if insight.get('priority') == priority_filter]
+            
+            return jsonify({
+                'status': 'success',
+                'insights': insights,
+                'metrics_summary': {
+                    'completion_rate': metrics['completion_rates']['completion_rate'],
+                    'failure_rate': metrics['completion_rates']['failure_rate'],
+                    'total_tasks': metrics['completion_rates']['total_tasks']
+                },
+                'time_range': {
+                    'start': start_time.isoformat(),
+                    'end': end_time.isoformat(),
+                    'days': days
+                }
+            })
+        except Exception as e:
+            app.logger.error(f'Error fetching task analytics insights: {e}')
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/analytics/tasks/real-time', methods=['GET'])
+    def get_task_real_time_metrics():
+        """Get real-time task metrics"""
+        try:
+            from .analytics.engine import create_analytics_engine
+            from datetime import datetime
+            
+            # Create analytics engine and get real-time metrics
+            analytics_engine = create_analytics_engine()
+            real_time_metrics = analytics_engine.get_real_time_metrics()
+            
+            return jsonify({
+                'status': 'success',
+                'real_time_metrics': real_time_metrics,
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        except Exception as e:
+            app.logger.error(f'Error fetching real-time task metrics: {e}')
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/analytics/tasks/performance-snapshot', methods=['POST'])
+    def create_task_performance_snapshot():
+        """Create a performance snapshot for current task state"""
+        try:
+            from .analytics.engine import create_analytics_engine
+            
+            # Create analytics engine and performance snapshot
+            analytics_engine = create_analytics_engine()
+            snapshot = analytics_engine.create_performance_snapshot()
+            
+            if snapshot:
+                db.session.add(snapshot)
+                db.session.commit()
+                
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Performance snapshot created successfully',
+                    'snapshot': snapshot.to_dict()
+                })
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Failed to create performance snapshot'
+                }), 500
+        except Exception as e:
+            app.logger.error(f'Error creating performance snapshot: {e}')
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/analytics/tasks/trends', methods=['GET'])
+    def get_task_performance_trends():
+        """Get task performance trends over time"""
+        try:
+            from .analytics.engine import create_analytics_engine
+            from datetime import datetime, timedelta
+            
+            # Get query parameters
+            days = request.args.get('days', 30, type=int)
+            metric_type = request.args.get('metric', 'completion_rate')
+            
+            # Calculate time range
+            end_time = datetime.utcnow()
+            start_time = end_time - timedelta(days=days)
+            time_range = (start_time, end_time)
+            
+            # Create analytics engine
+            analytics_engine = create_analytics_engine()
+            metrics = analytics_engine.collect_task_metrics(time_range)
+            
+            # Extract trend data based on metric type
+            trend_data = metrics.get('performance_trends', {})
+            
+            return jsonify({
+                'status': 'success',
+                'trends': trend_data,
+                'metric_type': metric_type,
+                'time_range': {
+                    'start': start_time.isoformat(),
+                    'end': end_time.isoformat(),
+                    'days': days
+                }
+            })
+        except Exception as e:
+            app.logger.error(f'Error fetching task performance trends: {e}')
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/analytics/tasks/summary', methods=['GET'])
+    def get_task_analytics_summary():
+        """Get overall task analytics summary"""
+        try:
+            from .models.task import Task, TaskStatus
+            from .analytics.engine import create_analytics_engine
+            from sqlalchemy import func
+            from datetime import datetime, timedelta
+            
+            # Basic task statistics
+            total_tasks = Task.query.count()
+            completed_tasks = Task.query.filter_by(status=TaskStatus.COMPLETED).count()
+            failed_tasks = Task.query.filter_by(status=TaskStatus.FAILED).count()
+            pending_tasks = Task.query.filter_by(status=TaskStatus.PENDING).count()
+            in_progress_tasks = Task.query.filter_by(status=TaskStatus.IN_PROGRESS).count()
+            
+            # Recent activity (last 7 days)
+            week_ago = datetime.utcnow() - timedelta(days=7)
+            recent_tasks = Task.query.filter(Task.created_at >= week_ago).count()
+            recent_completed = Task.query.filter(
+                Task.created_at >= week_ago,
+                Task.status == TaskStatus.COMPLETED
+            ).count()
+            
+            # Average processing times
+            avg_processing_time = db.session.query(
+                func.avg(Task.processing_time)
+            ).filter(Task.processing_time.isnot(None)).scalar()
+            
+            avg_queue_time = db.session.query(
+                func.avg(Task.queue_time)
+            ).filter(Task.queue_time.isnot(None)).scalar()
+            
+            # Task type distribution
+            type_distribution = db.session.query(
+                Task.type,
+                func.count(Task.id).label('count')
+            ).group_by(Task.type).all()
+            
+            # Priority distribution
+            priority_distribution = db.session.query(
+                Task.priority,
+                func.count(Task.id).label('count')
+            ).group_by(Task.priority).all()
+            
+            # Calculate rates
+            completion_rate = completed_tasks / total_tasks if total_tasks > 0 else 0
+            failure_rate = failed_tasks / total_tasks if total_tasks > 0 else 0
+            recent_completion_rate = recent_completed / recent_tasks if recent_tasks > 0 else 0
+            
+            return jsonify({
+                'status': 'success',
+                'summary': {
+                    'total_tasks': total_tasks,
+                    'completed_tasks': completed_tasks,
+                    'failed_tasks': failed_tasks,
+                    'pending_tasks': pending_tasks,
+                    'in_progress_tasks': in_progress_tasks,
+                    'recent_tasks': recent_tasks,
+                    'recent_completed': recent_completed,
+                    'completion_rate': round(completion_rate, 3),
+                    'failure_rate': round(failure_rate, 3),
+                    'recent_completion_rate': round(recent_completion_rate, 3),
+                    'avg_processing_time_minutes': float(avg_processing_time or 0),
+                    'avg_queue_time_minutes': float(avg_queue_time or 0),
+                    'type_distribution': {
+                        task_type[0].value if task_type[0] else 'unknown': task_type[1] 
+                        for task_type in type_distribution
+                    },
+                    'priority_distribution': {
+                        priority[0].value if priority[0] else 'unknown': priority[1] 
+                        for priority in priority_distribution
+                    }
+                }
+            })
+        except Exception as e:
+            app.logger.error(f'Error fetching task analytics summary: {e}')
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
+
     # ============================================================================
     # WEB UI DASHBOARD ROUTES
     # ============================================================================
@@ -1238,20 +1506,164 @@ def register_routes(app):
     <div class="container mt-4">
         <div class="row">
             <div class="col-12">
-                <h1><i class="fas fa-chart-line"></i> Conversation Analytics</h1>
+                <h1><i class="fas fa-chart-line"></i> SwarmDirector Analytics</h1>
+                <ul class="nav nav-tabs" id="analyticsTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button" role="tab">
+                            <i class="fas fa-tasks"></i> Task Analytics
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="conversations-tab" data-bs-toggle="tab" data-bs-target="#conversations" type="button" role="tab">
+                            <i class="fas fa-comments"></i> Conversation Analytics
+                        </button>
+                    </li>
+                </ul>
             </div>
         </div>
         
-        <!-- Summary Cards -->
-        <div class="row mt-4">
-            <div class="col-md-3">
-                <div class="card bg-primary text-white">
-                    <div class="card-body">
-                        <h5><i class="fas fa-comments"></i> Total Conversations</h5>
-                        <h2 id="totalConversations">-</h2>
+        <div class="tab-content" id="analyticsTabContent">
+            <!-- Task Analytics Tab -->
+            <div class="tab-pane fade show active" id="tasks" role="tabpanel">
+                <!-- Task Summary Cards -->
+                <div class="row mt-4">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body">
+                                <h5><i class="fas fa-tasks"></i> Total Tasks</h5>
+                                <h2 id="totalTasks">-</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white">
+                            <div class="card-body">
+                                <h5><i class="fas fa-check-circle"></i> Completed</h5>
+                                <h2 id="completedTasks">-</h2>
+                                <small id="completionRate">-</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-white">
+                            <div class="card-body">
+                                <h5><i class="fas fa-spinner"></i> In Progress</h5>
+                                <h2 id="inProgressTasks">-</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-danger text-white">
+                            <div class="card-body">
+                                <h5><i class="fas fa-exclamation-triangle"></i> Failed</h5>
+                                <h2 id="failedTasks">-</h2>
+                                <small id="failureRate">-</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Task Performance Metrics -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-chart-line"></i> Performance Trends</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="taskTrendsChart" width="400" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-chart-pie"></i> Task Distribution</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <canvas id="taskTypeChart" width="200" height="200"></canvas>
+                                    </div>
+                                    <div class="col-6">
+                                        <canvas id="taskPriorityChart" width="200" height="200"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Task Timing Analytics -->
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-clock"></i> Timing Analytics</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="text-center">
+                                            <h6>Avg Processing Time</h6>
+                                            <span id="avgProcessingTime" class="h4 text-primary">-</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="text-center">
+                                            <h6>Avg Queue Time</h6>
+                                            <span id="avgQueueTime" class="h4 text-warning">-</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="text-center">
+                                            <h6>Recent Tasks (7 days)</h6>
+                                            <span id="recentTasks" class="h4 text-info">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Task Insights -->
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5><i class="fas fa-lightbulb"></i> Analytics Insights</h5>
+                                <button class="btn btn-sm btn-outline-primary" onclick="refreshInsights()">
+                                    <i class="fas fa-refresh"></i> Refresh
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div id="taskInsights">
+                                    <div class="text-center">
+                                        <div class="spinner-border" role="status">
+                                            <span class="visually-hidden">Loading insights...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+            
+            <!-- Conversation Analytics Tab -->
+            <div class="tab-pane fade" id="conversations" role="tabpanel">
+        
+                <!-- Summary Cards -->
+                <div class="row mt-4">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body">
+                                <h5><i class="fas fa-comments"></i> Total Conversations</h5>
+                                <h2 id="totalConversations">-</h2>
+                            </div>
+                        </div>
+                    </div>
             <div class="col-md-3">
                 <div class="card bg-success text-white">
                     <div class="card-body">
@@ -1369,11 +1781,551 @@ def register_routes(app):
                 </div>
             </div>
         </div>
+        </div> <!-- Close tab-content -->
     </div>
     
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let patternsChart = null;
+        let taskTrendsChart = null;
+        let taskTypeChart = null;
+        let taskPriorityChart = null;
         
+        // Task Analytics Functions
+        async function loadTaskSummary() {
+            try {
+                const response = await fetch('/api/analytics/tasks/summary');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const summary = data.summary;
+                    
+                    // Update task summary cards
+                    document.getElementById('totalTasks').textContent = summary.total_tasks;
+                    document.getElementById('completedTasks').textContent = summary.completed_tasks;
+                    document.getElementById('inProgressTasks').textContent = summary.in_progress_tasks;
+                    document.getElementById('failedTasks').textContent = summary.failed_tasks;
+                    
+                    // Update rates
+                    document.getElementById('completionRate').textContent = 
+                        summary.completion_rate ? (summary.completion_rate * 100).toFixed(1) + '% completion rate' : 'No data';
+                    document.getElementById('failureRate').textContent = 
+                        summary.failure_rate ? (summary.failure_rate * 100).toFixed(1) + '% failure rate' : 'No data';
+                    
+                    // Update timing metrics
+                    document.getElementById('avgProcessingTime').textContent = 
+                        summary.avg_processing_time_minutes ? Math.round(summary.avg_processing_time_minutes) + ' min' : 'N/A';
+                    document.getElementById('avgQueueTime').textContent = 
+                        summary.avg_queue_time_minutes ? Math.round(summary.avg_queue_time_minutes) + ' min' : 'N/A';
+                    document.getElementById('recentTasks').textContent = summary.recent_tasks;
+                    
+                    // Update charts
+                    updateTaskTypeChart(summary.type_distribution);
+                    updateTaskPriorityChart(summary.priority_distribution);
+                }
+            } catch (error) {
+                console.error('Error loading task summary:', error);
+            }
+        }
+        
+        async function loadTaskTrends() {
+            try {
+                const response = await fetch('/api/analytics/tasks/trends?days=30');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateTaskTrendsChart(data.trends);
+                }
+            } catch (error) {
+                console.error('Error loading task trends:', error);
+            }
+        }
+        
+        async function loadTaskInsights() {
+            try {
+                const response = await fetch('/api/analytics/tasks/insights?days=30');
+                const data = await response.json();
+                
+                const insightsContainer = document.getElementById('taskInsights');
+                
+                if (data.status === 'success' && data.insights.length > 0) {
+                    insightsContainer.innerHTML = data.insights.map(insight => `
+                        <div class="alert alert-${getPriorityClass(insight.priority)} mb-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1"><i class="fas fa-${getPriorityIcon(insight.priority)}"></i> ${insight.title}</h6>
+                                    <p class="mb-1">${insight.description}</p>
+                                    ${insight.action_items ? `<small><strong>Actions:</strong> ${insight.action_items.join(', ')}</small>` : ''}
+                                </div>
+                                <span class="badge bg-${getPriorityClass(insight.priority)}">${insight.priority}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    insightsContainer.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="fas fa-check"></i> All systems running smoothly! No critical insights at this time.
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading task insights:', error);
+                document.getElementById('taskInsights').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> Error loading insights: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function updateTaskTrendsChart(trendsData) {
+            const ctx = document.getElementById('taskTrendsChart').getContext('2d');
+            
+            if (taskTrendsChart) {
+                taskTrendsChart.destroy();
+            }
+            
+            const dailyTrends = trendsData.daily_trends || [];
+            
+            taskTrendsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dailyTrends.map(d => d.date),
+                    datasets: [{
+                        label: 'Completed Tasks',
+                        data: dailyTrends.map(d => d.completed_count),
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        tension: 0.1
+                    }, {
+                        label: 'Avg Processing Time (min)',
+                        data: dailyTrends.map(d => d.avg_processing_time),
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        yAxisID: 'y1',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updateTaskTypeChart(typeData) {
+            const ctx = document.getElementById('taskTypeChart').getContext('2d');
+            
+            if (taskTypeChart) {
+                taskTypeChart.destroy();
+            }
+            
+            const labels = Object.keys(typeData);
+            const data = Object.values(typeData);
+            
+            taskTypeChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#007bff',
+                            '#28a745',
+                            '#ffc107',
+                            '#dc3545',
+                            '#6f42c1',
+                            '#20c997'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: 'By Type'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updateTaskPriorityChart(priorityData) {
+            const ctx = document.getElementById('taskPriorityChart').getContext('2d');
+            
+            if (taskPriorityChart) {
+                taskPriorityChart.destroy();
+            }
+            
+            const labels = Object.keys(priorityData);
+            const data = Object.values(priorityData);
+            
+            taskPriorityChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#dc3545',
+                            '#ffc107',
+                            '#28a745',
+                            '#6c757d'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: 'By Priority'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function getPriorityClass(priority) {
+            switch(priority) {
+                case 'critical': return 'danger';
+                case 'high': return 'warning';
+                case 'medium': return 'info';
+                case 'low': return 'secondary';
+                default: return 'primary';
+            }
+        }
+        
+        function getPriorityIcon(priority) {
+            switch(priority) {
+                case 'critical': return 'exclamation-triangle';
+                case 'high': return 'exclamation-circle';
+                case 'medium': return 'info-circle';
+                case 'low': return 'check-circle';
+                default: return 'lightbulb';
+            }
+        }
+        
+        function refreshInsights() {
+            document.getElementById('taskInsights').innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading insights...</span>
+                    </div>
+                </div>
+            `;
+            loadTaskInsights();
+        }
+        let taskTrendsChart = null;
+        let taskTypeChart = null;
+        let taskPriorityChart = null;
+        
+        // Task Analytics Functions
+        async function loadTaskSummary() {
+            try {
+                const response = await fetch('/api/analytics/tasks/summary');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const summary = data.summary;
+                    
+                    // Update task summary cards
+                    document.getElementById('totalTasks').textContent = summary.total_tasks;
+                    document.getElementById('completedTasks').textContent = summary.completed_tasks;
+                    document.getElementById('inProgressTasks').textContent = summary.in_progress_tasks;
+                    document.getElementById('failedTasks').textContent = summary.failed_tasks;
+                    
+                    // Update rates
+                    document.getElementById('completionRate').textContent = 
+                        summary.completion_rate ? (summary.completion_rate * 100).toFixed(1) + '% completion rate' : 'No data';
+                    document.getElementById('failureRate').textContent = 
+                        summary.failure_rate ? (summary.failure_rate * 100).toFixed(1) + '% failure rate' : 'No data';
+                    
+                    // Update timing metrics
+                    document.getElementById('avgProcessingTime').textContent = 
+                        summary.avg_processing_time_minutes ? Math.round(summary.avg_processing_time_minutes) + ' min' : 'N/A';
+                    document.getElementById('avgQueueTime').textContent = 
+                        summary.avg_queue_time_minutes ? Math.round(summary.avg_queue_time_minutes) + ' min' : 'N/A';
+                    document.getElementById('recentTasks').textContent = summary.recent_tasks;
+                    
+                    // Update charts
+                    updateTaskTypeChart(summary.type_distribution);
+                    updateTaskPriorityChart(summary.priority_distribution);
+                }
+            } catch (error) {
+                console.error('Error loading task summary:', error);
+            }
+        }
+        
+        async function loadTaskTrends() {
+            try {
+                const response = await fetch('/api/analytics/tasks/trends?days=30');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateTaskTrendsChart(data.trends);
+                }
+            } catch (error) {
+                console.error('Error loading task trends:', error);
+            }
+        }
+        
+        async function loadTaskInsights() {
+            try {
+                const response = await fetch('/api/analytics/tasks/insights?days=30');
+                const data = await response.json();
+                
+                const insightsContainer = document.getElementById('taskInsights');
+                
+                if (data.status === 'success' && data.insights.length > 0) {
+                    insightsContainer.innerHTML = data.insights.map(insight => `
+                        <div class="alert alert-${getPriorityClass(insight.priority)} mb-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1"><i class="fas fa-${getPriorityIcon(insight.priority)}"></i> ${insight.title}</h6>
+                                    <p class="mb-1">${insight.description}</p>
+                                    ${insight.action_items ? `<small><strong>Actions:</strong> ${insight.action_items.join(', ')}</small>` : ''}
+                                </div>
+                                <span class="badge bg-${getPriorityClass(insight.priority)}">${insight.priority}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    insightsContainer.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="fas fa-check"></i> All systems running smoothly! No critical insights at this time.
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading task insights:', error);
+                document.getElementById('taskInsights').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> Error loading insights: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function updateTaskTrendsChart(trendsData) {
+            const ctx = document.getElementById('taskTrendsChart').getContext('2d');
+            
+            if (taskTrendsChart) {
+                taskTrendsChart.destroy();
+            }
+            
+            const dailyTrends = trendsData.daily_trends || [];
+            
+            taskTrendsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dailyTrends.map(d => d.date),
+                    datasets: [{
+                        label: 'Completed Tasks',
+                        data: dailyTrends.map(d => d.completed_count),
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        tension: 0.1
+                    }, {
+                        label: 'Avg Processing Time (min)',
+                        data: dailyTrends.map(d => d.avg_processing_time),
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        yAxisID: 'y1',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updateTaskTypeChart(typeData) {
+            const ctx = document.getElementById('taskTypeChart').getContext('2d');
+            
+            if (taskTypeChart) {
+                taskTypeChart.destroy();
+            }
+            
+            const labels = Object.keys(typeData);
+            const data = Object.values(typeData);
+            
+            taskTypeChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#007bff',
+                            '#28a745',
+                            '#ffc107',
+                            '#dc3545',
+                            '#6f42c1',
+                            '#20c997'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: 'By Type'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updateTaskPriorityChart(priorityData) {
+            const ctx = document.getElementById('taskPriorityChart').getContext('2d');
+            
+            if (taskPriorityChart) {
+                taskPriorityChart.destroy();
+            }
+            
+            const labels = Object.keys(priorityData);
+            const data = Object.values(priorityData);
+            
+            taskPriorityChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#dc3545',
+                            '#ffc107',
+                            '#28a745',
+                            '#6c757d'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: 'By Priority'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function getPriorityClass(priority) {
+            switch(priority) {
+                case 'critical': return 'danger';
+                case 'high': return 'warning';
+                case 'medium': return 'info';
+                case 'low': return 'secondary';
+                default: return 'primary';
+            }
+        }
+        
+        function getPriorityIcon(priority) {
+            switch(priority) {
+                case 'critical': return 'exclamation-triangle';
+                case 'high': return 'exclamation-circle';
+                case 'medium': return 'info-circle';
+                case 'low': return 'check-circle';
+                default: return 'lightbulb';
+            }
+        }
+        
+        function refreshInsights() {
+            document.getElementById('taskInsights').innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading insights...</span>
+                    </div>
+                </div>
+            `;
+            loadTaskInsights();
+        }
+        
+        // Conversation Analytics Functions (existing)        
+        // Initialize dashboard on load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load task analytics by default
+            loadTaskSummary();
+            loadTaskTrends();
+            loadTaskInsights();
+            
+            // Handle tab switching
+            const tabTriggerList = document.querySelectorAll('#analyticsTab button[data-bs-toggle="tab"]');
+            tabTriggerList.forEach(tabTrigger => {
+                tabTrigger.addEventListener('shown.bs.tab', function (event) {
+                    const target = event.target.getAttribute('data-bs-target');
+                    if (target === '#tasks') {
+                        // Load task analytics when switching to tasks tab
+                        loadTaskSummary();
+                        loadTaskTrends();
+                        loadTaskInsights();
+                    } else if (target === '#conversations') {
+                        // Load conversation analytics when switching to conversations tab
+                        loadSummary();
+                        loadConversations();
+                    }
+                });
+            });
+        });
+        
+        // Conversation Analytics Functions (existing)
         async function loadSummary() {
             try {
                 const response = await fetch('/api/analytics/summary');
