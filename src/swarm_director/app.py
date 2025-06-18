@@ -1,5 +1,6 @@
 import os
 import logging
+from datetime import datetime
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -24,6 +25,9 @@ from .utils.concurrency import ConcurrencyManager, initialize_concurrency_manage
 from .utils.async_processor import AsyncProcessorConfig
 from .utils.resource_monitor import ResourceMonitorConfig
 
+# Import connection pool manager
+from .utils.connection_pool import initialize_connection_pool_manager
+
 # Initialize streaming manager (will be configured in create_app)
 streaming_manager = None
 socketio = None
@@ -47,12 +51,32 @@ def create_app(config_name='default'):
     
     # Load configuration
     from .config import config
-    app.config.from_object(config[config_name])
+    config_class = config[config_name]
+    app.config.from_object(config_class)
+    
+    # Initialize configuration-specific settings
+    config_class.init_app(app)
     
     # Initialize extensions with app
     db.init_app(app)
     migrate.init_app(app, db)
     mail.init_app(app)
+    
+    # Initialize connection pool manager for database optimization
+    initialize_connection_pool_manager(app)
+    
+    # Set up database engine for connection pool monitoring after app context is available
+    def setup_connection_pool_engine():
+        try:
+            with app.app_context():
+                connection_pool_manager = app.extensions.get('connection_pool_manager')
+                if connection_pool_manager and hasattr(db, 'engine'):
+                    connection_pool_manager.set_engine(db.engine)
+        except Exception as e:
+            app.logger.warning(f"Could not set up connection pool engine: {e}")
+    
+    # Store the setup function to be called later
+    app.extensions['setup_connection_pool_engine'] = setup_connection_pool_engine
     
     # Initialize streaming and WebSocket functionality
     initialize_streaming(app)
@@ -154,16 +178,137 @@ def register_routes(app):
             # Test database connection using proper SQLAlchemy syntax
             db.session.execute(text('SELECT 1'))
             db_status = 'connected'
+            
+            # Check connection pool health
+            connection_pool_manager = app.extensions.get('connection_pool_manager')
+            pool_health = None
+            if connection_pool_manager:
+                pool_health = connection_pool_manager.get_health_status()
+                pool_status = {
+                    'healthy': pool_health.is_healthy,
+                    'utilization': f"{pool_health.pool_utilization:.2%}",
+                    'error_rate': f"{pool_health.error_rate:.2f}%",
+                    'avg_response_time': f"{pool_health.avg_response_time:.3f}s"
+                }
+            else:
+                pool_status = 'not_available'
+            
         except Exception as e:
             db_status = f'error: {str(e)}'
+            pool_status = 'error'
         
         return ResponseFormatter.success(
             data={
                 'status': 'healthy',
                 'database': db_status,
+                'connection_pool': pool_status,
                 'version': '1.0.0'
             }
         )
+    
+    # Connection Pool Monitoring Endpoints
+    @app.route('/api/connection-pool/status')
+    def get_connection_pool_status():
+        """Get detailed connection pool status"""
+        try:
+            connection_pool_manager = app.extensions.get('connection_pool_manager')
+            if not connection_pool_manager:
+                return jsonify({
+                    'success': False,
+                    'error': 'Connection pool manager not available'
+                }), 503
+            
+            status = connection_pool_manager.get_pool_status()
+            return jsonify({
+                'success': True,
+                'data': status
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/api/connection-pool/health')
+    def get_connection_pool_health():
+        """Get connection pool health assessment"""
+        try:
+            connection_pool_manager = app.extensions.get('connection_pool_manager')
+            if not connection_pool_manager:
+                return jsonify({
+                    'success': False,
+                    'error': 'Connection pool manager not available'
+                }), 503
+            
+            health = connection_pool_manager.get_health_status()
+            health_data = {
+                'is_healthy': health.is_healthy,
+                'pool_utilization': health.pool_utilization,
+                'error_rate': health.error_rate,
+                'avg_response_time': health.avg_response_time,
+                'last_error': health.last_error,
+                'last_check': health.last_check.isoformat(),
+                'recommendations': health.recommendations
+            }
+            return jsonify({
+                'success': True,
+                'data': health_data
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/api/connection-pool/test')
+    def test_connection_pool():
+        """Test connection pool connectivity"""
+        try:
+            connection_pool_manager = app.extensions.get('connection_pool_manager')
+            if not connection_pool_manager:
+                return jsonify({
+                    'success': False,
+                    'error': 'Connection pool manager not available'
+                }), 503
+            
+            test_result = connection_pool_manager.test_connection()
+            return jsonify({
+                'success': True,
+                'data': {
+                    'connection_test': 'passed' if test_result else 'failed',
+                    'timestamp': datetime.now().isoformat()
+                }
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/api/connection-pool/reset-metrics', methods=['POST'])
+    def reset_connection_pool_metrics():
+        """Reset connection pool metrics"""
+        try:
+            connection_pool_manager = app.extensions.get('connection_pool_manager')
+            if not connection_pool_manager:
+                return jsonify({
+                    'success': False,
+                    'error': 'Connection pool manager not available'
+                }), 503
+            
+            connection_pool_manager.reset_metrics()
+            return jsonify({
+                'success': True,
+                'data': {
+                    'message': 'Connection pool metrics reset successfully',
+                    'timestamp': datetime.now().isoformat()
+                }
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
     
     # Performance Metrics API Endpoints
     @app.route('/api/metrics/summary')
