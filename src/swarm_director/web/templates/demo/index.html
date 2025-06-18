@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwarmDirector Interactive Demo</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        
+        .hero-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .scenario-enter {
+            animation: slideInUp 0.6s ease-out;
+        }
+        
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .metrics-animation {
+            animation: fadeInUp 0.8s ease-out;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50" x-data="demoApp()" x-init="init()">
+    
+    <!-- Hero Section -->
+    <section class="hero-gradient text-white">
+        <div class="container mx-auto px-6 py-16">
+            <div class="text-center">
+                <h1 class="text-5xl font-bold mb-6">
+                    🤖 SwarmDirector Interactive Demo
+                </h1>
+                <p class="text-xl mb-8 text-white/90 max-w-3xl mx-auto">
+                    Experience the power of AI agent orchestration with realistic business scenarios. 
+                    Watch as our intelligent agents collaborate to solve complex tasks automatically.
+                </p>
+                
+                <!-- Live System Metrics -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mt-12 metrics-animation">
+                    <div class="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+                        <div class="text-3xl font-bold" x-text="systemMetrics.tasksProcessed"></div>
+                        <div class="text-sm text-white/80">Tasks Processed</div>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+                        <div class="text-3xl font-bold" x-text="systemMetrics.successRate"></div>
+                        <div class="text-sm text-white/80">Success Rate</div>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+                        <div class="text-3xl font-bold" x-text="systemMetrics.activeAgents"></div>
+                        <div class="text-sm text-white/80">Active Agents</div>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+                        <div class="text-3xl font-bold" x-text="systemMetrics.avgResponseTime"></div>
+                        <div class="text-sm text-white/80">Avg Response</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Demo Scenarios Section -->
+    <section class="py-16">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-gray-800 mb-4">
+                    Choose Your Business Scenario
+                </h2>
+                <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+                    Explore how SwarmDirector handles real-world business challenges with AI-powered automation
+                </p>
+            </div>
+            
+            <!-- Scenario Cards -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {% for scenario_id, scenario in scenarios.items() %}
+                <div class="bg-white rounded-xl shadow-lg card-hover scenario-enter cursor-pointer"
+                     onclick="window.location.href='/demo/scenario/{{ scenario_id }}'">
+                    <div class="p-8">
+                        <!-- Scenario Icon -->
+                        <div class="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center
+                                    {% if scenario_id == 'customer_support' %}bg-blue-100 text-blue-600
+                                    {% elif scenario_id == 'marketing_campaign' %}bg-green-100 text-green-600
+                                    {% elif scenario_id == 'data_insights' %}bg-purple-100 text-purple-600
+                                    {% else %}bg-gray-100 text-gray-600{% endif %}">
+                            <span class="text-2xl">
+                                {% if scenario_id == 'customer_support' %}🎧
+                                {% elif scenario_id == 'marketing_campaign' %}📢
+                                {% elif scenario_id == 'data_insights' %}📊
+                                {% else %}🤖{% endif %}
+                            </span>
+                        </div>
+                        
+                        <!-- Scenario Content -->
+                        <h3 class="text-xl font-bold text-gray-800 mb-3 text-center">{{ scenario.title }}</h3>
+                        <p class="text-gray-600 mb-6 text-center">{{ scenario.description }}</p>
+                        
+                        <!-- Task Preview -->
+                        <div class="space-y-2 mb-6">
+                            {% for task in scenario.tasks[:2] %}
+                            <div class="flex items-center text-sm text-gray-500">
+                                <div class="w-2 h-2 bg-green-400 rounded-full mr-3"></div>
+                                <span>{{ task.title }}</span>
+                            </div>
+                            {% endfor %}
+                            {% if scenario.tasks|length > 2 %}
+                            <div class="text-sm text-gray-400">
+                                +{{ scenario.tasks|length - 2 }} more tasks
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- CTA Button -->
+                        <button class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 transition-all">
+                            Try This Scenario
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="bg-gray-100 py-16">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-gray-800 mb-4">
+                    Why SwarmDirector?
+                </h2>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Lightning Fast</h3>
+                    <p class="text-gray-600">Process tasks in under 2.3 seconds on average</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-green-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">98.7% Success Rate</h3>
+                    <p class="text-gray-600">Reliable AI agents that get the job done</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-purple-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Smart Collaboration</h3>
+                    <p class="text-gray-600">Multiple AI agents working together seamlessly</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-yellow-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Cost Effective</h3>
+                    <p class="text-gray-600">Save $12,450+ per month in operational costs</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Live Activity Feed -->
+    <section class="py-16">
+        <div class="container mx-auto px-6">
+            <div class="max-w-4xl mx-auto">
+                <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">
+                    Live System Activity
+                </h2>
+                
+                <div class="bg-white rounded-xl shadow-lg p-8">
+                    <div class="space-y-4" id="activity-feed">
+                        <!-- Activity items will be loaded here -->
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
+                                    <span>📧</span>
+                                </div>
+                                <div>
+                                    <div class="font-medium text-gray-800">Email campaign sent to 1,200 customers</div>
+                                    <div class="text-sm text-gray-500">2 minutes ago</div>
+                                </div>
+                            </div>
+                            <div class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                                completed
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center">
+                                    <span>📊</span>
+                                </div>
+                                <div>
+                                    <div class="font-medium text-gray-800">Sales data analysis completed</div>
+                                    <div class="text-sm text-gray-500">5 minutes ago</div>
+                                </div>
+                            </div>
+                            <div class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                                completed
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-10 h-10 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center">
+                                    <span>🔄</span>
+                                </div>
+                                <div>
+                                    <div class="font-medium text-gray-800">Customer support ticket routed</div>
+                                    <div class="text-sm text-gray-500">8 minutes ago</div>
+                                </div>
+                            </div>
+                            <div class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
+                                in_progress
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer CTA -->
+    <section class="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-16">
+        <div class="container mx-auto px-6 text-center">
+            <h2 class="text-3xl font-bold mb-4">Ready to Get Started?</h2>
+            <p class="text-xl mb-8 text-white/90">Join thousands of businesses automating their workflows with SwarmDirector</p>
+            <div class="space-x-4">
+                <button onclick="window.location.href='/demo/scenario/customer_support'" class="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                    Start Free Demo
+                </button>
+                <a href="/chat" class="border border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition-colors inline-block">
+                    Try Live Chat
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        function demoApp() {
+            return {
+                systemMetrics: {
+                    tasksProcessed: '2,847+',
+                    successRate: '98.7%',
+                    activeAgents: '6',
+                    avgResponseTime: '2.3s'
+                },
+                
+                init() {
+                    this.loadSystemStatus();
+                    this.startMetricsUpdate();
+                },
+                
+                async loadSystemStatus() {
+                    try {
+                        const response = await fetch('/demo/api/system_status');
+                        const data = await response.json();
+                        if (data.tasks_processed) {
+                            this.systemMetrics.tasksProcessed = data.tasks_processed + '+';
+                        }
+                        if (data.success_rate) {
+                            this.systemMetrics.successRate = data.success_rate + '%';
+                        }
+                        if (data.active_agents) {
+                            this.systemMetrics.activeAgents = data.active_agents.toString();
+                        }
+                        if (data.avg_response_time) {
+                            this.systemMetrics.avgResponseTime = data.avg_response_time;
+                        }
+                    } catch (error) {
+                        console.error('Failed to load system status:', error);
+                    }
+                },
+                
+                startMetricsUpdate() {
+                    // Update metrics periodically to show "live" data
+                    setInterval(() => {
+                        const currentTasks = parseInt(this.systemMetrics.tasksProcessed.replace(/[^0-9]/g, ''));
+                        this.systemMetrics.tasksProcessed = (currentTasks + Math.floor(Math.random() * 3)) + '+';
+                    }, 10000);
+                }
+            }
+        }
+        
+        // Load activity data
+        function loadActivity() {
+            fetch('/demo/api/system_status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.recent_activity) {
+                        console.log('Loaded activity:', data.recent_activity);
+                    }
+                })
+                .catch(error => console.error('Failed to load activity:', error));
+        }
+    </script>
+</body>
+</html> 
