@@ -3,7 +3,7 @@ Workflow management module
 Provides orchestration, state management, and context management for SwarmDirector workflows
 """
 
-from .workflow_context import WorkflowContext, WorkflowScope
+from .workflow_context import WorkflowContext, ContextScope
 from .state_manager import WorkflowStateManager, WorkflowStatus, WorkflowState, StateTransition
 from .orchestrator import WorkflowOrchestrator, ExecutionStrategy, WorkflowExecutionResult
 
@@ -63,7 +63,7 @@ from .ab_testing_service import (
 __all__ = [
     # Core workflow components
     'WorkflowContext',
-    'WorkflowScope', 
+    'ContextScope', 
     'WorkflowStateManager',
     'WorkflowStatus',
     'WorkflowState',

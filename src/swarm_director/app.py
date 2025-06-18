@@ -84,6 +84,12 @@ def create_app(config_name='default'):
     # Initialize async processing for concurrent request handling
     initialize_async_processing(app)
     
+    # Initialize request queue system for high load handling
+    initialize_request_queue_system(app)
+    
+    # Initialize adaptive throttling system
+    initialize_adaptive_throttling_system(app)
+    
     # Configure logging
     setup_logging(app)
     
@@ -303,6 +309,123 @@ def register_routes(app):
                     'message': 'Connection pool metrics reset successfully',
                     'timestamp': datetime.now().isoformat()
                 }
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    # Adaptive Throttling Monitoring Endpoints
+    @app.route('/api/throttling/status')
+    def get_throttling_status():
+        """Get current adaptive throttling status"""
+        try:
+            throttling_manager = app.extensions.get('throttling_manager')
+            if not throttling_manager:
+                return jsonify({
+                    'success': False,
+                    'error': 'Throttling manager not available'
+                }), 503
+            
+            latest_metrics = throttling_manager.get_latest_metrics()
+            if not latest_metrics:
+                return jsonify({
+                    'success': False,
+                    'error': 'No throttling metrics available'
+                }), 404
+            
+            return jsonify({
+                'success': True,
+                'data': latest_metrics.to_dict()
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/api/throttling/metrics')
+    def get_throttling_metrics():
+        """Get throttling metrics history"""
+        try:
+            throttling_manager = app.extensions.get('throttling_manager')
+            if not throttling_manager:
+                return jsonify({
+                    'success': False,
+                    'error': 'Throttling manager not available'
+                }), 503
+            
+            duration = request.args.get('duration', 10, type=int)  # minutes
+            metrics_history = throttling_manager.get_metrics_history(duration)
+            
+            return jsonify({
+                'success': True,
+                'data': {
+                    'metrics': [m.to_dict() for m in metrics_history],
+                    'duration_minutes': duration,
+                    'count': len(metrics_history)
+                }
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/api/throttling/concurrency')
+    def get_throttling_concurrency():
+        """Get current and target concurrency levels"""
+        try:
+            throttling_manager = app.extensions.get('throttling_manager')
+            if not throttling_manager:
+                return jsonify({
+                    'success': False,
+                    'error': 'Throttling manager not available'
+                }), 503
+            
+            return jsonify({
+                'success': True,
+                'data': {
+                    'current_concurrency': throttling_manager.get_current_concurrency(),
+                    'target_concurrency': throttling_manager.get_target_concurrency(),
+                    'max_concurrency': throttling_manager.config.thresholds.max_concurrency,
+                    'min_concurrency': throttling_manager.config.thresholds.min_concurrency
+                }
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/api/throttling/force-adjustment', methods=['POST'])
+    def force_throttling_adjustment():
+        """Force an immediate throttling adjustment"""
+        try:
+            throttling_manager = app.extensions.get('throttling_manager')
+            if not throttling_manager:
+                return jsonify({
+                    'success': False,
+                    'error': 'Throttling manager not available'
+                }), 503
+            
+            data = request.get_json() or {}
+            target_concurrency = data.get('target_concurrency')
+            
+            if target_concurrency is not None:
+                if not isinstance(target_concurrency, int) or target_concurrency < 1:
+                    return jsonify({
+                        'success': False,
+                        'error': 'target_concurrency must be a positive integer'
+                    }), 400
+            
+            throttling_manager.force_adjustment(target_concurrency)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Throttling adjustment forced successfully',
+                'new_target': throttling_manager.get_target_concurrency()
             })
         except Exception as e:
             return jsonify({
@@ -3159,6 +3282,74 @@ def initialize_cost_tracking_system(app):
         pass
 
 
+def initialize_request_queue_system(app):
+    """Initialize request queue system for high load handling"""
+    try:
+        from .utils.request_queue import initialize_request_queue_manager, RequestQueueConfig
+        from .utils.queue_middleware import initialize_queue_middleware
+        
+        # Create configuration for request queue system
+        config = RequestQueueConfig(
+            max_queue_size=1000,
+            max_concurrent_requests=20,
+            request_timeout_seconds=60,
+            queue_timeout_seconds=30,
+            backpressure_threshold=0.8,
+            resume_threshold=0.3,
+            cleanup_interval_seconds=300,
+            enable_metrics=True,
+            enable_blackboard=True,
+            process_groups_enabled=True
+        )
+        
+        # Initialize request queue manager
+        queue_manager = initialize_request_queue_manager(config)
+        
+        # Store in app extensions
+        app.extensions['request_queue_manager'] = queue_manager
+        
+        # Initialize queue middleware
+        queue_middleware = initialize_queue_middleware(app, queue_manager)
+        
+        app.logger.info("Request queue system initialized successfully")
+        
+        # Initialize and start queue manager on first request
+        @app.before_first_request
+        def init_request_queue():
+            """Initialize request queue system on first request"""
+            try:
+                import asyncio
+                import threading
+                
+                async def start_queue_manager():
+                    await queue_manager.initialize()
+                    await queue_manager.start()
+                    app.logger.info("Request queue manager started successfully")
+                
+                def run_in_thread():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        new_loop.run_until_complete(start_queue_manager())
+                    finally:
+                        new_loop.close()
+                
+                # Start in background thread
+                thread = threading.Thread(target=run_in_thread, daemon=True)
+                thread.start()
+                
+            except Exception as e:
+                app.logger.error(f"Failed to start request queue manager: {e}")
+        
+        return queue_manager, queue_middleware
+        
+    except ImportError as e:
+        app.logger.warning(f"Request queue system not available: {e}")
+        return None, None
+    except Exception as e:
+        app.logger.error(f"Failed to initialize request queue system: {e}")
+        return None, None
+
 def initialize_async_processing(app):
     """Initialize async processing for concurrent request handling"""
     global concurrency_manager
@@ -3230,6 +3421,107 @@ def initialize_async_processing(app):
         # Continue without async processing if initialization fails
         concurrency_manager = None
         app.extensions['concurrency_manager'] = None
+
+
+def initialize_adaptive_throttling_system(app):
+    """Initialize adaptive throttling system for dynamic load management"""
+    try:
+        from .utils.adaptive_throttling import (
+            initialize_throttling_manager, AdaptiveThrottlingConfig, ThrottlingThresholds
+        )
+        from .utils.system_monitor import MonitorConfig, ResourceThresholds
+        
+        # Create configuration for adaptive throttling
+        throttling_thresholds = ThrottlingThresholds(
+            low_load_threshold=30.0,
+            normal_load_threshold=60.0,
+            high_load_threshold=80.0,
+            critical_load_threshold=95.0,
+            min_concurrency=2,
+            max_concurrency=25,  # Demo-optimized for 10+ concurrent requests
+            default_concurrency=10,
+            scale_up_factor=1.3,
+            scale_down_factor=0.8,
+            emergency_scale_down=0.4,
+            healthy_threshold=70.0,
+            warning_threshold=50.0,
+            critical_threshold=30.0
+        )
+        
+        # System monitor configuration
+        monitor_config = MonitorConfig(
+            sampling_interval=2.0,  # Check every 2 seconds for responsiveness
+            history_size=150,  # Keep 5 minutes of history at 2s intervals
+            enable_cpu_monitoring=True,
+            enable_memory_monitoring=True,
+            enable_disk_monitoring=True,
+            enable_network_monitoring=True,
+            enable_process_monitoring=True,
+            enable_alerts=True,
+            thresholds=ResourceThresholds(
+                cpu_warning=70.0,
+                cpu_critical=85.0,
+                cpu_emergency=95.0,
+                memory_warning=75.0,
+                memory_critical=90.0,
+                memory_emergency=98.0,
+                disk_warning=80.0,
+                disk_critical=90.0,
+                disk_emergency=95.0
+            )
+        )
+        
+        # Adaptive throttling configuration
+        config = AdaptiveThrottlingConfig(
+            enabled=True,
+            adjustment_interval=3.0,  # Adjust every 3 seconds
+            metrics_history_size=100,
+            thresholds=throttling_thresholds,
+            enable_predictive_scaling=True,
+            enable_emergency_throttling=True,
+            smoothing_window=3,
+            monitor_config=monitor_config
+        )
+        
+        # Initialize throttling manager
+        throttling_manager = initialize_throttling_manager(config)
+        
+        # Store in app extensions
+        app.extensions['throttling_manager'] = throttling_manager
+        
+        app.logger.info("Adaptive throttling system initialized successfully")
+        
+        # Start throttling system on first request
+        @app.before_first_request
+        def init_adaptive_throttling():
+            """Initialize adaptive throttling system on first request"""
+            try:
+                throttling_manager.start()
+                app.logger.info("Adaptive throttling manager started successfully")
+                
+                # Add callback for throttling metrics
+                def log_throttling_metrics(metrics):
+                    if metrics.throttle_action.value != 'maintain':
+                        app.logger.info(
+                            f"Throttling adjustment: {metrics.throttle_action.value}, "
+                            f"load: {metrics.load_level.value}, "
+                            f"concurrency: {metrics.current_concurrency} -> {metrics.target_concurrency}, "
+                            f"health: {metrics.system_health_score:.1f}%"
+                        )
+                
+                throttling_manager.add_adjustment_callback(log_throttling_metrics)
+                
+            except Exception as e:
+                app.logger.error(f"Failed to start adaptive throttling manager: {e}")
+        
+        return throttling_manager
+        
+    except ImportError as e:
+        app.logger.warning(f"Adaptive throttling system not available: {e}")
+        return None
+    except Exception as e:
+        app.logger.error(f"Failed to initialize adaptive throttling system: {e}")
+        return None
 
 
 if __name__ == '__main__':
