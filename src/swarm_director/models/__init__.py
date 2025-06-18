@@ -10,5 +10,6 @@ from .conversation import Conversation
 from .agent_log import AgentLog
 from .draft import Draft
 from .email_message import EmailMessage
+from .cost_tracking import APIUsage, CostBudget, CostAlert
 
-__all__ = ['db', 'Agent', 'Task', 'Conversation', 'AgentLog', 'Draft', 'EmailMessage'] 
+__all__ = ['db', 'Agent', 'Task', 'Conversation', 'AgentLog', 'Draft', 'EmailMessage', 'APIUsage', 'CostBudget', 'CostAlert']

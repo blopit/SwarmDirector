@@ -19,9 +19,17 @@ mail = Mail()
 from .utils.metrics import get_current_metrics_summary, metrics_collector, track_performance_metrics
 from .utils.logging import setup_metrics_integration
 
+# Import async processing components
+from .utils.concurrency import ConcurrencyManager, initialize_concurrency_manager
+from .utils.async_processor import AsyncProcessorConfig
+from .utils.resource_monitor import ResourceMonitorConfig
+
 # Initialize streaming manager (will be configured in create_app)
 streaming_manager = None
 socketio = None
+
+# Global concurrency manager for async processing
+concurrency_manager = None
 
 def create_app(config_name='default'):
     """Application factory pattern for Flask app creation"""
@@ -49,6 +57,9 @@ def create_app(config_name='default'):
     # Initialize streaming and WebSocket functionality
     initialize_streaming(app)
     
+    # Initialize async processing for concurrent request handling
+    initialize_async_processing(app)
+    
     # Configure logging
     setup_logging(app)
     
@@ -63,6 +74,12 @@ def create_app(config_name='default'):
     
     # Register blueprints/routes
     register_routes(app)
+
+    # Initialize cost tracking system
+    try:
+        initialize_cost_tracking_system(app)
+    except Exception as e:
+        app.logger.warning(f"Cost tracking system initialization failed: {e}")
     
     # Import models to ensure they're registered with SQLAlchemy
     try:
@@ -503,36 +520,116 @@ def register_routes(app):
             
             director = DirectorAgent(director_db)
             
-            # Process task through DirectorAgent
+            # Submit task for async processing
             try:
-                result = director.execute_task(task)
+                # Get the concurrency manager
+                from .utils.concurrency import get_concurrency_manager, TaskPriority
+                manager = get_concurrency_manager()
+                
+                if manager and manager.is_initialized:
+                    # Submit task asynchronously for concurrent processing
+                    import asyncio
+                    
+                    # Create async wrapper for task execution
+                    async def process_task_async():
+                        return director.execute_task(task)
+                    
+                    # Submit to async processor with appropriate priority
+                    priority_map = {
+                        'high': TaskPriority.HIGH,
+                        'medium': TaskPriority.NORMAL,
+                        'low': TaskPriority.LOW,
+                        'critical': TaskPriority.CRITICAL
+                    }
+                    
+                    # Submit task asynchronously (run in event loop)
+                    async def submit_async():
+                        return await manager.submit_task(
+                            process_task_async,
+                            priority=priority_map.get(task_priority, TaskPriority.NORMAL),
+                            timeout=30.0,  # 30 second timeout for demo responsiveness
+                            check_resources=True,
+                            estimated_cpu=20.0,
+                            estimated_memory_mb=150.0
+                        )
+                    
+                    # Run async submission in event loop
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            # If there's already a running loop, use run_in_executor
+                            import concurrent.futures
+                            with concurrent.futures.ThreadPoolExecutor() as executor:
+                                future = executor.submit(asyncio.run, submit_async())
+                                async_task_id = future.result(timeout=5.0)
+                        else:
+                            async_task_id = loop.run_until_complete(submit_async())
+                    except RuntimeError:
+                        # No event loop exists, create one
+                        async_task_id = asyncio.run(submit_async())
+                    
+                    # Update task status to processing
+                    task.status = TaskStatus.IN_PROGRESS
+                    task.save()
+                    
+                    # Log the async task submission
+                    app.logger.info(f'Task submitted for async processing: {task_id}, async_id: {async_task_id}, type: {task_type}')
+                    
+                    # Return immediate response with async task ID
+                    return ResponseFormatter.success(
+                        data={
+                            'task_id': task_id,
+                            'async_task_id': async_task_id,
+                            'message': 'Task submitted for async processing',
+                            'status': 'processing',
+                            'task_details': {
+                                'id': task.id,
+                                'title': task.title,
+                                'type': task_type,
+                                'status': task.status.value,
+                                'created_at': task.created_at.isoformat()
+                            },
+                            'check_status_url': f'/api/tasks/{task.id}/status',
+                            'get_result_url': f'/api/tasks/{task.id}/result'
+                        },
+                        status_code=202  # Accepted for processing
+                    )
+                else:
+                    # Fallback to synchronous processing if async manager not available
+                    app.logger.warning("Async processing not available, falling back to synchronous processing")
+                    result = director.execute_task(task)
+                    
+                    # Log the task submission
+                    app.logger.info(f'Task processed synchronously: {task_id}, type: {task_type}')
+                    
+                    # Return synchronous response
+                    return ResponseFormatter.success(
+                        data={
+                            'task_id': task_id,
+                            'message': 'Task processed successfully (synchronous)',
+                            'routing_result': result,
+                            'task_details': {
+                                'id': task.id,
+                                'title': task.title,
+                                'type': task_type,
+                                'status': task.status.value,
+                                'created_at': task.created_at.isoformat()
+                            }
+                        },
+                        status_code=201
+                    )
+                    
             except Exception as execution_error:
+                # Update task status to failed
+                task.status = TaskStatus.FAILED
+                task.save()
+                
                 raise SwarmDirectorError(
                     f"Task execution failed: {str(execution_error)}",
                     error_code='TASK_EXECUTION_ERROR',
                     status_code=500,
                     details={'task_id': task_id, 'task_type': task_type}
                 )
-            
-            # Log the task submission
-            app.logger.info(f'Task submitted: {task_id}, type: {task_type}')
-            
-            # Return standardized response
-            return ResponseFormatter.success(
-                data={
-                    'task_id': task_id,
-                    'message': 'Task submitted successfully',
-                    'routing_result': result,
-                    'task_details': {
-                        'id': task.id,
-                        'title': task.title,
-                        'type': task_type,
-                        'status': task.status.value,
-                        'created_at': task.created_at.isoformat()
-                    }
-                },
-                status_code=201
-            )
         
         except (ValidationError, RateLimitError, DatabaseError, SwarmDirectorError):
             # Re-raise SwarmDirector errors to be handled by the error handlers
@@ -663,6 +760,135 @@ def register_routes(app):
         except Exception as e:
             app.logger.error(f'Error creating task: {str(e)}')
             return jsonify({'status': 'error', 'error': str(e)}), 500
+
+    @app.route('/api/tasks/<int:task_id>/status', methods=['GET'])
+    def get_task_status(task_id):
+        """Get the status of a specific task (for async processing)"""
+        from .utils.response_formatter import ResponseFormatter
+        try:
+            from .models.task import Task
+            from .utils.concurrency import get_concurrency_manager
+            
+            task = Task.query.get_or_404(task_id)
+            
+            # Check async task status if available
+            manager = get_concurrency_manager()
+            async_status = None
+            
+            if manager and hasattr(task.input_data, 'get') and task.input_data.get('async_task_id'):
+                async_task_id = task.input_data['async_task_id']
+                async_processor = manager.async_processor
+                
+                if async_task_id in async_processor.active_tasks:
+                    async_status = {
+                        'async_task_id': async_task_id,
+                        'status': 'processing',
+                        'progress': 'in_progress'
+                    }
+                elif async_task_id in async_processor.completed_tasks:
+                    completed_task = async_processor.completed_tasks[async_task_id]
+                    async_status = {
+                        'async_task_id': async_task_id,
+                        'status': 'completed' if completed_task.error is None else 'failed',
+                        'progress': 'completed',
+                        'error': str(completed_task.error) if completed_task.error else None
+                    }
+                else:
+                    async_status = {
+                        'async_task_id': async_task_id,
+                        'status': 'unknown',
+                        'progress': 'unknown'
+                    }
+            
+            return ResponseFormatter.success(
+                data={
+                    'task_id': task_id,
+                    'status': task.status.value,
+                    'title': task.title,
+                    'created_at': task.created_at.isoformat(),
+                    'updated_at': task.updated_at.isoformat() if task.updated_at else None,
+                    'async_status': async_status
+                }
+            )
+            
+        except Exception as e:
+            app.logger.error(f'Error fetching task status {task_id}: {str(e)}')
+            return ResponseFormatter.internal_error(
+                message='Failed to fetch task status'
+            )
+    
+    @app.route('/api/tasks/<int:task_id>/result', methods=['GET'])
+    def get_task_result(task_id):
+        """Get the result of a completed task (for async processing)"""
+        from .utils.response_formatter import ResponseFormatter
+        try:
+            from .models.task import Task
+            from .utils.concurrency import get_concurrency_manager
+            import asyncio
+            
+            task = Task.query.get_or_404(task_id)
+            
+            # Check if task has async result
+            manager = get_concurrency_manager()
+            if manager and hasattr(task.input_data, 'get') and task.input_data.get('async_task_id'):
+                async_task_id = task.input_data['async_task_id']
+                
+                # Get result from async processor
+                async def get_result():
+                    try:
+                        result = await manager.get_task_result(async_task_id, timeout=1.0)
+                        return result
+                    except Exception as e:
+                        return {'error': str(e)}
+                
+                # Run async result retrieval
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        # If there's already a running loop, create a new one in a thread
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(asyncio.run, get_result())
+                            result = future.result(timeout=5.0)
+                    else:
+                        result = loop.run_until_complete(get_result())
+                except RuntimeError:
+                    # No event loop exists, create one
+                    result = asyncio.run(get_result())
+                
+                return ResponseFormatter.success(
+                    data={
+                        'task_id': task_id,
+                        'async_task_id': async_task_id,
+                        'status': task.status.value,
+                        'result': result,
+                        'task_details': {
+                            'title': task.title,
+                            'created_at': task.created_at.isoformat(),
+                            'completed_at': task.updated_at.isoformat() if task.updated_at else None
+                        }
+                    }
+                )
+            else:
+                # Return task data if no async processing
+                return ResponseFormatter.success(
+                    data={
+                        'task_id': task_id,
+                        'status': task.status.value,
+                        'result': task.input_data,  # Basic task data
+                        'task_details': {
+                            'title': task.title,
+                            'created_at': task.created_at.isoformat(),
+                            'updated_at': task.updated_at.isoformat() if task.updated_at else None
+                        }
+                    }
+                )
+                
+        except Exception as e:
+            app.logger.error(f'Error fetching task result {task_id}: {str(e)}')
+            return ResponseFormatter.internal_error(
+                message='Failed to fetch task result'
+            )
 
     # ============================================================================
     # CONVERSATIONS CRUD API ENDPOINTS
@@ -2513,20 +2739,28 @@ def register_routes(app):
 </body>
 </html>'''
 
+    # Register cost tracking routes
+    try:
+        from .web.cost_routes import cost_bp
+        app.register_blueprint(cost_bp)
+        app.logger.info("Cost tracking routes registered successfully")
+    except Exception as e:
+        app.logger.error(f"Failed to register cost tracking routes: {str(e)}")
+
 def register_database_commands(app):
     """Register database management CLI commands"""
     
     @app.cli.command()
     def init_db():
         """Initialize the database with tables"""
-        from models.base import db
+        from .models.base import db
         db.create_all()
         print("✅ Database tables created successfully!")
         
     @app.cli.command()
     def reset_db():
         """Reset the database (WARNING: This will delete all data!)"""
-        from models.base import db
+        from .models.base import db
         import click
         
         if click.confirm('⚠️  This will delete ALL data. Are you sure?'):
@@ -2745,11 +2979,112 @@ def setup_alerting_system(app):
         app.extensions['alerting_engine'] = alerting_engine
         
         app.logger.info("Alerting system initialized successfully")
-        
+
     except Exception as e:
         app.logger.error(f"Failed to setup alerting system: {str(e)}")
         # Don't fail the entire app if alerting setup fails
         pass
+
+
+def initialize_cost_tracking_system(app):
+    """Initialize the cost tracking system"""
+    try:
+        with app.app_context():
+            # Import cost tracking components
+            from .utils.cost_integration import initialize_cost_tracking
+            from .utils.budget_manager import budget_manager
+            from .models.cost_tracking import CostBudget
+
+            # Initialize cost tracking
+            success = initialize_cost_tracking()
+
+            if success:
+                app.logger.info("Cost tracking system initialized successfully")
+
+                # Check if we need to create default budgets
+                existing_budgets = CostBudget.query.filter_by(is_active=True).count()
+                if existing_budgets == 0:
+                    app.logger.info("No active budgets found, consider creating default budgets")
+            else:
+                app.logger.warning("Cost tracking system initialization failed")
+
+    except Exception as e:
+        app.logger.error(f"Failed to initialize cost tracking system: {str(e)}")
+        # Don't fail the entire app if cost tracking fails
+        pass
+
+
+def initialize_async_processing(app):
+    """Initialize async processing for concurrent request handling"""
+    global concurrency_manager
+    
+    try:
+        # Demo-optimized configuration for handling 10+ concurrent requests
+        async_config = AsyncProcessorConfig(
+            max_concurrent_tasks=15,  # Allow up to 15 concurrent tasks for demos
+            max_queue_size=100,       # Larger queue for demo scenarios
+            worker_thread_count=8,    # More workers for faster processing
+            task_timeout_seconds=30,  # Shorter timeout for demo responsiveness
+            backpressure_threshold=0.7,  # Lower threshold for better responsiveness
+            resume_threshold=0.3,
+            cleanup_interval_seconds=60,  # More frequent cleanup
+            enable_metrics=True,
+            enable_resource_monitoring=True
+        )
+        
+        # Resource monitor configuration for demos
+        resource_config = ResourceMonitorConfig(
+            monitoring_interval=5,    # Check resources every 5 seconds
+            cpu_threshold=85.0,       # Allow higher CPU usage for demos
+            memory_threshold=85.0,    # Allow higher memory usage
+            disk_threshold=90.0,
+            enable_alerts=True,
+            alert_cooldown_minutes=2  # Faster alert recovery
+        )
+        
+        # Initialize the global concurrency manager
+        concurrency_manager = initialize_concurrency_manager(async_config, resource_config)
+        
+        # Store reference in app extensions for cleanup
+        if not hasattr(app, 'extensions'):
+            app.extensions = {}
+        app.extensions['concurrency_manager'] = concurrency_manager
+        
+        # Schedule initialization to happen after app context is available
+        @app.before_first_request
+        def init_async_processing():
+            import asyncio
+            try:
+                # Create event loop if not exists
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                
+                # Initialize concurrency manager in the loop
+                async def initialize():
+                    await concurrency_manager.initialize()
+                    app.logger.info("Async processing initialized successfully for concurrent request handling")
+                
+                # Run initialization
+                if loop.is_running():
+                    # If loop is already running, schedule as task
+                    asyncio.create_task(initialize())
+                else:
+                    # If loop is not running, run until complete
+                    loop.run_until_complete(initialize())
+                    
+            except Exception as e:
+                app.logger.error(f"Failed to initialize async processing: {str(e)}")
+        
+        app.logger.info("Async processing setup completed")
+        
+    except Exception as e:
+        app.logger.error(f"Failed to setup async processing: {str(e)}")
+        # Continue without async processing if initialization fails
+        concurrency_manager = None
+        app.extensions['concurrency_manager'] = None
 
 
 if __name__ == '__main__':

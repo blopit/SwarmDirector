@@ -289,4 +289,45 @@ def validate_request(schema: Dict[str, Any] = None, require_auth: bool = False):
                 }), 500
                 
         return decorated_function
-    return decorator 
+    return decorator
+
+
+def validate_json_data(request, required_fields: List[str] = None) -> Dict[str, Any]:
+    """
+    Validate JSON data from request and check for required fields.
+    
+    Args:
+        request: Flask request object
+        required_fields: List of required field names
+        
+    Returns:
+        Dict containing validated JSON data
+        
+    Raises:
+        ValidationError: If validation fails
+    """
+    if required_fields is None:
+        required_fields = []
+    
+    # Validate content type
+    RequestValidator.validate_content_type('application/json')
+    
+    # Get and validate JSON body
+    data = RequestValidator.validate_json_body()
+    
+    # Check required fields
+    missing_fields = []
+    for field in required_fields:
+        if field not in data or data[field] is None:
+            missing_fields.append(field)
+    
+    if missing_fields:
+        raise ValidationError(
+            f"Missing required fields: {', '.join(missing_fields)}", 
+            "MISSING_REQUIRED_FIELDS"
+        )
+    
+    # Sanitize all input data
+    sanitized_data = RequestValidator.sanitize_input(data)
+    
+    return sanitized_data

@@ -15,7 +15,7 @@ async function globalSetup(config) {
     // Create test results directory
     const fs = require('fs');
     const path = require('path');
-    const testResultsDir = path.join(process.cwd(), 'test-results');
+    const testResultsDir = path.join(process.cwd(), 'reports', 'test-results');
     if (!fs.existsSync(testResultsDir)) {
       fs.mkdirSync(testResultsDir, { recursive: true });
     }

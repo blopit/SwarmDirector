@@ -16,14 +16,14 @@ module.exports = defineConfig({
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
-    ['html'],
-    ['json', { outputFile: 'test-results/results.json' }],
-    ['junit', { outputFile: 'test-results/results.xml' }]
+    ['html', { outputFolder: 'reports/playwright' }],
+    ['json', { outputFile: 'reports/test-results/results.json' }],
+    ['junit', { outputFile: 'reports/test-results/results.xml' }]
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://127.0.0.1:5001',
+    baseURL: 'http://127.0.0.1:5050',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -80,16 +80,16 @@ module.exports = defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'python run.py',
-  //   url: 'http://127.0.0.1:5000',
-  //   reuseExistingServer: !process.env.CI,
-  //   timeout: 120 * 1000,
-  //   env: {
-  //     FLASK_ENV: 'testing',
-  //     FLASK_DEBUG: 'False'
-  //   }
-  // },
+  webServer: {
+    command: 'python run.py',
+    url: 'http://127.0.0.1:5050',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
+    env: {
+      FLASK_ENV: 'testing',
+      FLASK_DEBUG: 'False'
+    }
+  },
 
   /* Global setup and teardown */
   globalSetup: require.resolve('./tests/e2e/global-setup.js'),
@@ -104,5 +104,5 @@ module.exports = defineConfig({
   },
 
   /* Output directory for test artifacts */
-  outputDir: 'test-results/',
+  outputDir: 'reports/test-results/',
 }); 

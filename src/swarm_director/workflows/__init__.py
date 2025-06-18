@@ -44,6 +44,22 @@ from .error_monitoring_service import (
     AlertRule, Alert, ErrorPattern
 )
 
+# Performance Monitoring System (Task 9.4)
+from .performance_metrics_service import (
+    PerformanceMetricsCollector, MetricType, PerformanceSnapshot, 
+    PerformanceTrend, PerformanceThreshold, MetricsRegistry,
+    performance_metrics_service
+)
+from .performance_dashboard import (
+    PerformanceDashboard, DashboardWidget, DashboardAlert,
+    PerformanceChart, performance_dashboard
+)
+from .ab_testing_service import (
+    ABTestingService, OptimizationEngine, ABTestExperiment,
+    ExperimentVariant, OptimizationRecommendation, ExperimentStatus,
+    ConfigurationType, ab_testing_service, optimization_engine
+)
+
 __all__ = [
     # Core workflow components
     'WorkflowContext',
@@ -109,5 +125,28 @@ __all__ = [
     'AlertChannel',
     'AlertRule',
     'Alert',
-    'ErrorPattern'
+    'ErrorPattern',
+    
+    # Performance Monitoring System
+    'PerformanceMetricsCollector',
+    'MetricType',
+    'PerformanceSnapshot',
+    'PerformanceTrend',
+    'PerformanceThreshold',
+    'MetricsRegistry',
+    'performance_metrics_service',
+    'PerformanceDashboard',
+    'DashboardWidget',
+    'DashboardAlert',
+    'PerformanceChart',
+    'performance_dashboard',
+    'ABTestingService',
+    'OptimizationEngine',
+    'ABTestExperiment',
+    'ExperimentVariant',
+    'OptimizationRecommendation',
+    'ExperimentStatus',
+    'ConfigurationType',
+    'ab_testing_service',
+    'optimization_engine'
 ] 

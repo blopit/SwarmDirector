@@ -115,8 +115,25 @@ class DatabaseManager:
             # Create backup of current database before restore
             current_backup = self.backup_database(f"before_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
             
-            # Restore from backup
+            # Properly close all database connections
+            with self.app.app_context():
+                # Close all sessions
+                db.session.close()
+                
+                # Dispose of the engine connection pool
+                db.engine.dispose()
+                
+                # Wait a moment for connections to fully close
+                import time
+                time.sleep(0.1)
+            
+            # Now safely restore from backup
             shutil.copy2(backup_path, self.db_path)
+            
+            # Reinitialize the database engine
+            with self.app.app_context():
+                # This will create a new engine and connection pool
+                db.engine.connect().close()
             
             logger.info(f"Database restored from: {backup_path}")
             return True

@@ -14,7 +14,7 @@
     "test:headed": "npx playwright test --headed",
     "test:ui": "npx playwright test --ui",
     "test:debug": "npx playwright test --debug",
-    "test:report": "npx playwright show-report"
+    "test:report": "npx playwright show-report reports/playwright"
   },
   "repository": {
     "type": "git",

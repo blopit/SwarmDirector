@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 SwarmDirector Application Launcher
 
@@ -28,7 +29,7 @@ def main():
     
     # Get configuration from environment or use defaults
     host = os.environ.get('FLASK_HOST', '127.0.0.1')
-    port = int(os.environ.get('FLASK_PORT', 5000))
+    port = int(os.environ.get('FLASK_PORT', 5050))
     debug = os.environ.get('FLASK_DEBUG', 'True').lower() in ['true', '1', 'yes']
     
     print(f"📱 Application will be available at: http://{host}:{port}")
@@ -36,9 +37,9 @@ def main():
     print(f"🗄️ Database: {app.config.get('SQLALCHEMY_DATABASE_URI', 'Not configured')}")
     print("=" * 50)
     print("📊 Available endpoints:")
-    print("  • Main Dashboard: http://localhost:5000/dashboard")
-    print("  • API Health: http://localhost:5000/health")
-    print("  • Demo Interface: http://localhost:5000/demo")
+    print(f"  • Main Dashboard: http://localhost:{port}/dashboard")
+    print(f"  • API Health: http://localhost:{port}/health")
+    print(f"  • Demo Interface: http://localhost:{port}/demo")
     print("  • API Documentation: See docs/api/")
     print("=" * 50)
     
@@ -47,8 +48,8 @@ def main():
         socketio = app.extensions.get('socketio')
         if socketio:
             print("🔌 WebSocket support enabled")
-            print("  • WebSocket endpoint: ws://localhost:5000/socket.io/")
-            print("  • WebSocket status: http://localhost:5000/api/websocket/status")
+            print(f"  • WebSocket endpoint: ws://localhost:{port}/socket.io/")
+            print(f"  • WebSocket status: http://localhost:{port}/api/websocket/status")
             print("=" * 50)
             # Run with SocketIO support
             socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
