@@ -85,18 +85,48 @@ class TaskQueue:
     
     def __init__(self, config: AsyncProcessorConfig):
         self.config = config
-        self._queues = {
-            TaskPriority.CRITICAL: asyncio.Queue(maxsize=config.max_queue_size // 4),
-            TaskPriority.HIGH: asyncio.Queue(maxsize=config.max_queue_size // 4),
-            TaskPriority.NORMAL: asyncio.Queue(maxsize=config.max_queue_size // 2),
-            TaskPriority.LOW: asyncio.Queue(maxsize=config.max_queue_size // 4),
-        }
-        self._lock = asyncio.Lock()
-        self._not_empty = asyncio.Condition(self._lock)
         self._size = 0
+        # Initialize as None - will be set during async initialization
+        self._queues = None
+        self._lock = None
+        self._not_empty = None
+        self._initialized = False
+        self._init_lock = None  # Will be created in async context
+        
+    async def initialize(self):
+        """Initialize asyncio objects when called from async context"""
+        if self._initialized:
+            return
+            
+        # Create initialization lock if not exists (in current event loop)
+        if self._init_lock is None:
+            self._init_lock = asyncio.Lock()
+            
+        async with self._init_lock:
+            if self._initialized:  # Double-check in case another coroutine initialized
+                return
+                
+            # Create all asyncio objects in the current event loop
+            self._queues = {
+                TaskPriority.CRITICAL: asyncio.Queue(maxsize=self.config.max_queue_size // 4),
+                TaskPriority.HIGH: asyncio.Queue(maxsize=self.config.max_queue_size // 4),
+                TaskPriority.NORMAL: asyncio.Queue(maxsize=self.config.max_queue_size // 2),
+                TaskPriority.LOW: asyncio.Queue(maxsize=self.config.max_queue_size // 4),
+            }
+            
+            # Create lock and event in the same loop atomically  
+            loop = asyncio.get_running_loop()
+            self._lock = asyncio.Lock()
+            self._not_empty = asyncio.Event()  # Use Event instead of Condition
+            self._initialized = True
+
+    async def _ensure_initialized(self):
+        """Ensure the queue is initialized - alias for initialize()"""
+        await self.initialize()
         
     async def put(self, task: AsyncTask) -> bool:
         """Add task to appropriate priority queue"""
+        await self._ensure_initialized()
         async with self._lock:
             queue = self._queues[task.priority]
             
@@ -107,29 +137,41 @@ class TaskQueue:
             try:
                 queue.put_nowait(task)
                 self._size += 1
-                self._not_empty.notify()
+                self._not_empty.set()  # Signal that queue is not empty
                 return True
             except asyncio.QueueFull:
                 return False
     
     async def get(self) -> Optional[AsyncTask]:
         """Get highest priority task from queue"""
-        async with self._not_empty:
-            while self._size == 0:
-                await self._not_empty.wait()
+        await self._ensure_initialized()
+        
+        while True:
+            async with self._lock:
+                if self._size > 0:
+                    # Check queues in priority order
+                    for priority in [TaskPriority.CRITICAL, TaskPriority.HIGH, 
+                                   TaskPriority.NORMAL, TaskPriority.LOW]:
+                        queue = self._queues[priority]
+                        try:
+                            task = queue.get_nowait()
+                            self._size -= 1
+                            if self._size == 0:
+                                self._not_empty.clear()  # Clear event when queue is empty
+                            return task
+                        except asyncio.QueueEmpty:
+                            continue
+                    
+                    # If we reach here, no tasks were found but size > 0 (shouldn't happen)
+                    self._size = 0
+                    self._not_empty.clear()
+                    return None
+                else:
+                    # Queue is empty, clear the event and wait
+                    self._not_empty.clear()
             
-            # Check queues in priority order
-            for priority in [TaskPriority.CRITICAL, TaskPriority.HIGH, 
-                           TaskPriority.NORMAL, TaskPriority.LOW]:
-                queue = self._queues[priority]
-                try:
-                    task = queue.get_nowait()
-                    self._size -= 1
-                    return task
-                except asyncio.QueueEmpty:
-                    continue
-            
-            return None
+            # Wait for tasks to be added
+            await self._not_empty.wait()
     
     def size(self) -> int:
         """Get current queue size"""
