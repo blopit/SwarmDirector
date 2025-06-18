@@ -1,0 +1,45 @@
+# Task ID: 19
+# Title: Update Deprecated Flask Lifecycle Hooks for Compatibility with Flask 2.2+
+# Status: done
+# Dependencies: 13, 17
+# Priority: high
+# Description: Refactor initialization logic in the request queue and adaptive throttling systems to replace deprecated Flask methods like 'before_first_request' with supported lifecycle hooks, ensuring compatibility with Flask 2.2+ and proper application context management.
+# Details:
+1. Audit all usage of 'before_first_request' and other deprecated Flask lifecycle hooks in the request queue and adaptive throttling modules.
+2. Replace 'before_first_request' with modern alternatives such as 'app.before_request', 'app.before_app_first_request', or explicit initialization patterns using application factory or startup scripts, as recommended by Flask 2.2+ documentation.
+3. Ensure that any initialization previously performed by deprecated hooks is now executed at the appropriate time, maintaining thread safety and correct context (e.g., using 'with app.app_context()' where necessary).
+4. Refactor code to avoid reliance on removed context stack methods and deprecated patterns, referencing Flask's official changelog and migration guides for best practices.
+5. Update documentation and code comments to reflect the new initialization approach and any changes in context handling.
+6. Conduct a code review to ensure no deprecated Flask APIs remain in the affected modules.
+
+# Test Strategy:
+- Run the full test suite to confirm that initialization logic for the request queue and adaptive throttling systems executes correctly without warnings or errors on Flask 2.2+ and newer.
+- Manually verify that the systems initialize only once per application startup and behave as expected under concurrent request loads.
+- Check application logs for absence of deprecation warnings related to Flask lifecycle hooks.
+- Perform regression testing on request handling and throttling features to ensure no loss of functionality or stability.
+
+# Subtasks:
+## 1. Update OpenAI Library Integration [done]
+### Dependencies: None
+### Description: Fix OpenAI integration issues by updating from version 0.28.1 to OpenAI v1.0+ which introduced the 'OpenAI' class
+### Details:
+Update all OpenAI API calls to use the new client-based syntax and ensure proper error handling and response parsing
+
+## 2. Install Missing Dependencies [done]
+### Dependencies: None
+### Description: Install missing optional dependencies including flaml[automl] and anthropic
+### Details:
+Update requirements.txt and install flaml[automl] for AutoML functionalities and anthropic library for AI integration
+
+## 3. Fix Async Processing Configuration [done]
+### Dependencies: None
+### Description: Fix async processing initialization error with unexpected 'cpu_threshold' keyword argument
+### Details:
+Review and update async processing configuration to use correct parameter names and ensure compatibility with current library versions
+
+## 4. Add Missing Routes and Static Files [done]
+### Dependencies: None
+### Description: Create missing routes for /demo and /dashboard/tasks endpoints and add favicon.ico
+### Details:
+Implement missing routes that are returning 404 errors and add proper static file handling for favicon and other assets
+

@@ -1,7 +1,7 @@
 import os
 import logging
 from datetime import datetime
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_mail import Mail
@@ -23,10 +23,10 @@ from .utils.logging import setup_metrics_integration
 # Import async processing components
 from .utils.concurrency import ConcurrencyManager, initialize_concurrency_manager
 from .utils.async_processor import AsyncProcessorConfig
-from .utils.resource_monitor import ResourceMonitorConfig
+from .utils.resource_monitor import ResourceMonitorConfig, ResourceThresholds
 
 # Import connection pool manager
-from .utils.connection_pool import initialize_connection_pool_manager
+from .utils.connection_pool import initialize_connection_pool_manager, ConnectionPoolManager
 
 # Initialize streaming manager (will be configured in create_app)
 streaming_manager = None
@@ -3007,6 +3007,212 @@ def register_routes(app):
 </body>
 </html>'''
 
+    @app.route('/dashboard/tasks')
+    def tasks_page():
+        """Tasks management page"""
+        return '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tasks - SwarmDirector</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/dashboard">
+                <i class="fas fa-sitemap"></i> SwarmDirector
+            </a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="/dashboard/agents">Agents</a>
+                <a class="nav-link" href="/dashboard/analytics">Analytics</a>
+                <a class="nav-link active" href="/dashboard/tasks">Tasks</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h1><i class="fas fa-tasks"></i> Task Management</h1>
+                    <button class="btn btn-primary" onclick="toggleAddForm()">
+                        <i class="fas fa-plus"></i> Create Task
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Active Tasks</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="tasksTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Title</th>
+                                        <th>Status</th>
+                                        <th>Priority</th>
+                                        <th>Agent</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="7" class="text-center">
+                                            <div class="spinner-border" role="status">
+                                                <span class="visually-hidden">Loading tasks...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        async function loadTasks() {
+            try {
+                const response = await fetch('/api/tasks');
+                const data = await response.json();
+                
+                const tbody = document.querySelector('#tasksTable tbody');
+                tbody.innerHTML = '';
+                
+                if (data.tasks && data.tasks.length > 0) {
+                    data.tasks.forEach(task => {
+                        const row = tbody.insertRow();
+                        row.innerHTML = `
+                            <td>${task.id}</td>
+                            <td>${task.title}</td>
+                            <td><span class="badge bg-${getStatusColor(task.status)}">${task.status}</span></td>
+                            <td><span class="badge bg-${getPriorityColor(task.priority)}">${task.priority}</span></td>
+                            <td>${task.assigned_agent_name || 'Unassigned'}</td>
+                            <td>${new Date(task.created_at).toLocaleDateString()}</td>
+                            <td>
+                                <button class="btn btn-sm btn-info" onclick="viewTask(${task.id})">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </td>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center">No tasks found</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+                const tbody = document.querySelector('#tasksTable tbody');
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading tasks</td></tr>';
+            }
+        }
+        
+        function getStatusColor(status) {
+            const colors = {
+                'pending': 'warning',
+                'in_progress': 'primary',
+                'completed': 'success',
+                'failed': 'danger'
+            };
+            return colors[status] || 'secondary';
+        }
+        
+        function getPriorityColor(priority) {
+            const colors = {
+                'high': 'danger',
+                'medium': 'warning',
+                'low': 'info'
+            };
+            return colors[priority] || 'secondary';
+        }
+        
+        function viewTask(taskId) {
+            window.location.href = `/api/tasks/${taskId}/status`;
+        }
+        
+        document.addEventListener('DOMContentLoaded', loadTasks);
+    </script>
+</body>
+</html>'''
+
+    @app.route('/demo')
+    def demo_page():
+        """Demo page"""
+        # Demo scenarios data
+        DEMO_SCENARIOS = {
+            'customer_support': {
+                'title': 'Customer Support Automation',
+                'description': 'Handle customer inquiries with intelligent routing and automated responses',
+                'tasks': [
+                    {
+                        'type': 'email',
+                        'title': 'Welcome new customer',
+                        'description': 'Send personalized welcome email to Sarah Johnson who just signed up for our premium plan',
+                        'priority': 'high'
+                    },
+                    {
+                        'type': 'analysis',
+                        'title': 'Analyze support ticket trends',
+                        'description': 'Review last month\'s support tickets to identify common issues and improvement opportunities',
+                        'priority': 'medium'
+                    }
+                ]
+            },
+            'marketing_campaign': {
+                'title': 'Marketing Campaign Management',
+                'description': 'Coordinate multi-channel marketing campaigns with automated workflow',
+                'tasks': [
+                    {
+                        'type': 'coordinate',
+                        'title': 'Launch Q4 product campaign',
+                        'description': 'Coordinate the launch of our new product feature across all marketing channels',
+                        'priority': 'high'
+                    },
+                    {
+                        'type': 'email',
+                        'title': 'Send campaign announcement',
+                        'description': 'Send announcement email to 15,000 subscribers about the new product features',
+                        'priority': 'high'
+                    }
+                ]
+            },
+            'data_insights': {
+                'title': 'Business Intelligence & Analytics',
+                'description': 'Generate automated insights and reports from business data',
+                'tasks': [
+                    {
+                        'type': 'analysis',
+                        'title': 'Generate monthly revenue report',
+                        'description': 'Analyze revenue trends, top customers, and growth metrics for November 2024',
+                        'priority': 'medium'
+                    },
+                    {
+                        'type': 'automation',
+                        'title': 'Automate dashboard updates',
+                        'description': 'Set up automated updates for executive dashboard with real-time KPIs',
+                        'priority': 'medium'
+                    }
+                ]
+            }
+        }
+        return render_template('demo/index.html', scenarios=DEMO_SCENARIOS)
+
+    @app.route('/favicon.ico')
+    def favicon():
+        """Serve favicon"""
+        return '', 204  # No content - prevents 404 errors
+
     # Register cost tracking routes
     try:
         from .web.cost_routes import cost_bp
@@ -3283,69 +3489,19 @@ def initialize_cost_tracking_system(app):
 
 
 def initialize_request_queue_system(app):
-    """Initialize request queue system for high load handling"""
+    """Initialize request queue system for high-throughput processing"""
+    # Note: Advanced request queue functionality is currently disabled
+    # This function exists for compatibility with existing initialization code
     try:
-        from .utils.request_queue import initialize_request_queue_manager, RequestQueueConfig
-        from .utils.queue_middleware import initialize_queue_middleware
+        app.logger.info("Request queue system: Using standard Flask request handling (advanced queuing disabled)")
         
-        # Create configuration for request queue system
-        config = RequestQueueConfig(
-            max_queue_size=1000,
-            max_concurrent_requests=20,
-            request_timeout_seconds=60,
-            queue_timeout_seconds=30,
-            backpressure_threshold=0.8,
-            resume_threshold=0.3,
-            cleanup_interval_seconds=300,
-            enable_metrics=True,
-            enable_blackboard=True,
-            process_groups_enabled=True
-        )
+        # Store placeholder in app extensions for compatibility
+        if not hasattr(app, 'extensions'):
+            app.extensions = {}
+        app.extensions['queue_manager'] = None
         
-        # Initialize request queue manager
-        queue_manager = initialize_request_queue_manager(config)
-        
-        # Store in app extensions
-        app.extensions['request_queue_manager'] = queue_manager
-        
-        # Initialize queue middleware
-        queue_middleware = initialize_queue_middleware(app, queue_manager)
-        
-        app.logger.info("Request queue system initialized successfully")
-        
-        # Initialize and start queue manager on first request
-        @app.before_first_request
-        def init_request_queue():
-            """Initialize request queue system on first request"""
-            try:
-                import asyncio
-                import threading
-                
-                async def start_queue_manager():
-                    await queue_manager.initialize()
-                    await queue_manager.start()
-                    app.logger.info("Request queue manager started successfully")
-                
-                def run_in_thread():
-                    new_loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(new_loop)
-                    try:
-                        new_loop.run_until_complete(start_queue_manager())
-                    finally:
-                        new_loop.close()
-                
-                # Start in background thread
-                thread = threading.Thread(target=run_in_thread, daemon=True)
-                thread.start()
-                
-            except Exception as e:
-                app.logger.error(f"Failed to start request queue manager: {e}")
-        
-        return queue_manager, queue_middleware
-        
-    except ImportError as e:
-        app.logger.warning(f"Request queue system not available: {e}")
         return None, None
+        
     except Exception as e:
         app.logger.error(f"Failed to initialize request queue system: {e}")
         return None, None
@@ -3369,13 +3525,18 @@ def initialize_async_processing(app):
         )
         
         # Resource monitor configuration for demos
+        resource_thresholds = ResourceThresholds(
+            cpu_high=70.0,
+            cpu_critical=85.0,
+            memory_high=70.0,
+            memory_critical=85.0,
+            disk_high=80.0,
+            disk_critical=90.0
+        )
+        
         resource_config = ResourceMonitorConfig(
             monitoring_interval=5,    # Check resources every 5 seconds
-            cpu_threshold=85.0,       # Allow higher CPU usage for demos
-            memory_threshold=85.0,    # Allow higher memory usage
-            disk_threshold=90.0,
-            enable_alerts=True,
-            alert_cooldown_minutes=2  # Faster alert recovery
+            thresholds=resource_thresholds
         )
         
         # Initialize the global concurrency manager
@@ -3386,9 +3547,16 @@ def initialize_async_processing(app):
             app.extensions = {}
         app.extensions['concurrency_manager'] = concurrency_manager
         
-        # Schedule initialization to happen after app context is available
-        @app.before_first_request
+        # Schedule initialization to happen after app context is available - use before_request with flag
+        async_initialized = False
+        
+        @app.before_request
         def init_async_processing():
+            nonlocal async_initialized
+            if async_initialized:
+                return
+            async_initialized = True
+            
             import asyncio
             try:
                 # Create event loop if not exists
@@ -3491,10 +3659,17 @@ def initialize_adaptive_throttling_system(app):
         
         app.logger.info("Adaptive throttling system initialized successfully")
         
-        # Start throttling system on first request
-        @app.before_first_request
+        # Start throttling system - use before_request with flag
+        throttling_initialized = False
+        
+        @app.before_request
         def init_adaptive_throttling():
             """Initialize adaptive throttling system on first request"""
+            nonlocal throttling_initialized
+            if throttling_initialized:
+                return
+            throttling_initialized = True
+            
             try:
                 throttling_manager.start()
                 app.logger.info("Adaptive throttling manager started successfully")

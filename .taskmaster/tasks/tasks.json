@@ -621,7 +621,7 @@
       "dependencies": [
         2
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
@@ -629,7 +629,7 @@
           "description": "Set up and configure Alembic for database schema migrations",
           "dependencies": [],
           "details": "Install Alembic, create migration environment, configure connection to the database, and establish initial migration script structure. Ensure proper integration with the existing application architecture to support automated schema changes.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 2,
@@ -639,7 +639,7 @@
             1
           ],
           "details": "Implement a version control mechanism that records schema changes, maintains history of migrations, and provides ability to identify current database state. Include functionality to validate schema consistency and detect drift between expected and actual schemas.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 3,
@@ -650,7 +650,7 @@
             2
           ],
           "details": "Create reusable components for data transformation, validation, and preservation during schema changes. Include rollback capabilities, zero-downtime migration support, and compatibility layers to facilitate future transition to PostgreSQL.",
-          "status": "pending"
+          "status": "done"
         }
       ]
     },
@@ -667,7 +667,7 @@
         12,
         13
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
@@ -695,8 +695,8 @@
             1,
             2
           ],
-          "details": "Create clear step-by-step instructions for all key features, include screenshots and visual aids to enhance understanding, document common use cases and solutions, incorporate feedback loops from initial user testing, and ensure consistency with the demo application functionality",
-          "status": "pending"
+          "details": "Create clear step-by-step instructions for all key features, include screenshots and visual aids to enhance understanding, document common use cases and solutions, incorporate feedback loops from initial user testing, and ensure consistency with the demo application functionality\n<info added on 2025-06-18T17:49:04.568Z>\nUser guide and troubleshooting documentation have been fully implemented and integrated into the docs/ directory, featuring comprehensive step-by-step instructions, real-world business scenarios, visual task state indicators, and API usage examples. Visual aids and screenshots enhance clarity, and the structure aligns with best practices for modular, user-focused documentation. Troubleshooting content addresses common startup, queue, and email issues, with performance and recovery guidance included. All materials have been tested for consistency with the demo application, ensuring clear navigation, accessibility, and alignment with current technical documentation standards. The implementation meets all requirements for coverage, usability, and integration, and is ready for deployment.\n</info added on 2025-06-18T17:49:04.568Z>",
+          "status": "done"
         }
       ]
     },
@@ -923,6 +923,57 @@
           "details": "Design a revised directory structure that aligns with best practices for clarity, accessibility, and scalability. Ensure the structure supports efficient navigation and permission management.\n<info added on 2025-06-13T18:28:38.427Z>\nRecommended directory structure for the revised .taskmaster/ system has been completed, featuring a maximum three-level depth for clarity and maintainability, centralized task management, enhanced documentation, organized reporting, and specialized templates. The structure groups assets by function and access level, supporting efficient navigation and permission management. A phased migration strategy is outlined to ensure smooth adoption, and validation criteria confirm alignment with best practices for folder simplicity, accessibility, and scalability. This structure is now ready for template standardization in the next phase.\n</info added on 2025-06-13T18:28:38.427Z>",
           "status": "done",
           "testStrategy": "Validate the proposed structure by mapping sample tasks and workflows to ensure logical organization and ease of access."
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "Update Deprecated Flask Lifecycle Hooks for Compatibility with Flask 2.2+",
+      "description": "Refactor initialization logic in the request queue and adaptive throttling systems to replace deprecated Flask methods like 'before_first_request' with supported lifecycle hooks, ensuring compatibility with Flask 2.2+ and proper application context management.",
+      "details": "1. Audit all usage of 'before_first_request' and other deprecated Flask lifecycle hooks in the request queue and adaptive throttling modules.\n2. Replace 'before_first_request' with modern alternatives such as 'app.before_request', 'app.before_app_first_request', or explicit initialization patterns using application factory or startup scripts, as recommended by Flask 2.2+ documentation.\n3. Ensure that any initialization previously performed by deprecated hooks is now executed at the appropriate time, maintaining thread safety and correct context (e.g., using 'with app.app_context()' where necessary).\n4. Refactor code to avoid reliance on removed context stack methods and deprecated patterns, referencing Flask's official changelog and migration guides for best practices.\n5. Update documentation and code comments to reflect the new initialization approach and any changes in context handling.\n6. Conduct a code review to ensure no deprecated Flask APIs remain in the affected modules.",
+      "testStrategy": "- Run the full test suite to confirm that initialization logic for the request queue and adaptive throttling systems executes correctly without warnings or errors on Flask 2.2+ and newer.\n- Manually verify that the systems initialize only once per application startup and behave as expected under concurrent request loads.\n- Check application logs for absence of deprecation warnings related to Flask lifecycle hooks.\n- Perform regression testing on request handling and throttling features to ensure no loss of functionality or stability.",
+      "status": "done",
+      "dependencies": [
+        13,
+        17
+      ],
+      "priority": "high",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Update OpenAI Library Integration",
+          "description": "Fix OpenAI integration issues by updating from version 0.28.1 to OpenAI v1.0+ which introduced the 'OpenAI' class",
+          "details": "Update all OpenAI API calls to use the new client-based syntax and ensure proper error handling and response parsing",
+          "status": "done",
+          "dependencies": [],
+          "parentTaskId": 19
+        },
+        {
+          "id": 2,
+          "title": "Install Missing Dependencies",
+          "description": "Install missing optional dependencies including flaml[automl] and anthropic",
+          "details": "Update requirements.txt and install flaml[automl] for AutoML functionalities and anthropic library for AI integration",
+          "status": "done",
+          "dependencies": [],
+          "parentTaskId": 19
+        },
+        {
+          "id": 3,
+          "title": "Fix Async Processing Configuration",
+          "description": "Fix async processing initialization error with unexpected 'cpu_threshold' keyword argument",
+          "details": "Review and update async processing configuration to use correct parameter names and ensure compatibility with current library versions",
+          "status": "done",
+          "dependencies": [],
+          "parentTaskId": 19
+        },
+        {
+          "id": 4,
+          "title": "Add Missing Routes and Static Files",
+          "description": "Create missing routes for /demo and /dashboard/tasks endpoints and add favicon.ico",
+          "details": "Implement missing routes that are returning 404 errors and add proper static file handling for favicon and other assets",
+          "status": "done",
+          "dependencies": [],
+          "parentTaskId": 19
         }
       ]
     }
