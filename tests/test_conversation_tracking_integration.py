@@ -16,9 +16,14 @@ class TestConversationTrackingIntegration(unittest.TestCase):
     def setUp(self):
         """Set up test environment"""
         self.app = create_app('testing')
+        self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        self.app.config['TESTING'] = True
+        self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        
         self.app_context = self.app.app_context()
         self.app_context.push()
         self.client = self.app.test_client()
+        
         db.create_all()
     
     def tearDown(self):

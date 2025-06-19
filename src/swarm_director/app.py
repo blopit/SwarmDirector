@@ -107,11 +107,14 @@ def create_app(config_name='default'):
     # Register blueprints/routes
     register_routes(app)
 
-    # Initialize cost tracking system
-    try:
-        initialize_cost_tracking_system(app)
-    except Exception as e:
-        app.logger.warning(f"Cost tracking system initialization failed: {e}")
+    # Initialize cost tracking system (skip in testing)
+    if not app.config.get('TESTING', False):
+        try:
+            initialize_cost_tracking_system(app)
+        except Exception as e:
+            app.logger.warning(f"Cost tracking system initialization failed: {e}")
+    else:
+        app.logger.info("Skipping cost tracking system initialization in testing mode")
 
     # Initialize validation and plugin system
     # This is now handled by registering the blueprint in register_routes
