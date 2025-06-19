@@ -120,24 +120,22 @@ class LoadPredictor:
         self._load_history.append((datetime.now(), load_value))
     
     def predict_load(self, horizon_seconds: int = 30) -> float:
-        """Predict load for the next horizon_seconds"""
-        if len(self._load_history) < 3:
-            return self._load_history[-1][1] if self._load_history else 50.0
+        """Predict load based on trend analysis"""
+        if len(self._load_history) < 2:
+            return float(self._load_history[-1][1]) if self._load_history else 0.0
         
-        # Simple linear trend prediction
+        # Linear regression on recent samples
+        times = [(sample[0] - self._load_history[0][0]).total_seconds() for sample in self._load_history]
         values = [sample[1] for sample in self._load_history]
-        times = [(sample[0] - self._load_history[0][0]).total_seconds() 
-                for sample in self._load_history]
-        
-        # Calculate linear trend
         n = len(values)
+        
         sum_t = sum(times)
         sum_v = sum(values)
         sum_tv = sum(t * v for t, v in zip(times, values))
         sum_t2 = sum(t * t for t in times)
         
         if sum_t2 == 0:
-            return values[-1]
+            return float(values[-1])
         
         # Linear regression: v = a + b*t
         b = (n * sum_tv - sum_t * sum_v) / (n * sum_t2 - sum_t * sum_t)
@@ -147,8 +145,8 @@ class LoadPredictor:
         future_time = times[-1] + horizon_seconds
         predicted = a + b * future_time
         
-        # Clamp to reasonable bounds
-        return max(0, min(100, predicted))
+        # Clamp to reasonable bounds and ensure float return
+        return float(max(0, min(100, predicted)))
 
 class AdaptiveThrottlingManager:
     """Main adaptive throttling manager"""

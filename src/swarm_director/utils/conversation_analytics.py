@@ -25,7 +25,8 @@ class ConversationAnalyticsEngine:
     
     def analyze_conversation(self, conversation_id: int) -> Optional[ConversationAnalytics]:
         """Perform comprehensive analysis of a conversation"""
-        conversation = Conversation.query.get(conversation_id)
+        from swarm_director.models import db
+        conversation = db.session.get(Conversation, conversation_id)
         if not conversation or not conversation.messages:
             return None
         
@@ -232,20 +233,23 @@ class ConversationAnalyticsEngine:
     
     def get_conversation_insights(self, conversation_id: int) -> Dict[str, Any]:
         """Get comprehensive insights for a conversation"""
-        conversation = Conversation.query.get(conversation_id)
-        analytics = ConversationAnalytics.query.filter_by(conversation_id=conversation_id).first()
-        
+        from swarm_director.models import db
+        conversation = db.session.get(Conversation, conversation_id)
         if not conversation:
-            return {"error": "Conversation not found"}
+            return {}
         
-        if not analytics:
-            analytics = self.analyze_conversation(conversation_id)
+        # Get or generate analytics
+        analytics = self.analyze_conversation(conversation_id)
         
         insights = {
-            "conversation": conversation.to_dict(),
-            "analytics": analytics.to_dict() if analytics else None,
-            "summary": self._generate_summary(conversation, analytics),
-            "recommendations": self._generate_recommendations(conversation, analytics)
+            'summary': self._generate_summary(conversation, analytics),
+            'recommendations': self._generate_recommendations(conversation, analytics),
+            'metrics': analytics.to_dict() if analytics else {},
+            'conversation_stats': {
+                'total_messages': len(conversation.messages),
+                'start_time': conversation.created_at.isoformat() if conversation.created_at else None,
+                'status': conversation.status.value if conversation.status else 'unknown'
+            }
         }
         
         return insights

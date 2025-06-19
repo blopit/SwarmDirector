@@ -1,0 +1,26 @@
+{
+  "title": "Send welcome email to new customer",
+  "description": "Send a personalized welcome email to John Doe who just signed up for our premium plan. Include account details and next steps.",
+  "priority": "high",
+  "input_data": {
+    "type": "email",
+    "customer_name": "John Doe",
+    "customer_email": "john.doe@example.com",
+    "plan": "premium",
+    "template": "welcome_premium",
+    "personalization": {
+      "signup_date": "2024-01-15",
+      "referral_source": "google_ads",
+      "preferences": {
+        "communication_frequency": "weekly",
+        "content_types": ["product_updates", "tips", "offers"]
+      }
+    },
+    "account_details": {
+      "account_id": "ACC-12345",
+      "subscription_id": "SUB-67890",
+      "billing_cycle": "monthly",
+      "trial_period_days": 14
+    }
+  }
+}

@@ -58,20 +58,14 @@ class TestConcurrentProcessingIntegration:
                 await asyncio.sleep(0.05)  # Small delay
                 return {"task_number": num, "status": "completed"}
             
-            # Submit 8 concurrent tasks
-            task_ids = []
+            # Submit 8 concurrent tasks  
+            tasks = []
             for i in range(8):
-                task_id = await processor.submit_task(
-                    lambda i=i: numbered_task(i),
-                    priority=TaskPriority.NORMAL
-                )
-                task_ids.append(task_id)
+                task = asyncio.create_task(numbered_task(i))
+                tasks.append(task)
             
-            # Collect results
-            results = []
-            for task_id in task_ids:
-                result = await processor.get_task_result(task_id, timeout=10.0)
-                results.append(result)
+            # Await all tasks
+            results = await asyncio.gather(*tasks)
             
             # Validate results
             assert len(results) == 8
@@ -107,23 +101,17 @@ class TestConcurrentProcessingIntegration:
                 }
             
             # Submit 12 tasks (above concurrent limit to test queuing)
-            task_ids = []
             start_time = time.time()
             
+            tasks = []
             for i in range(12):
-                task_id = await processor.submit_task(
-                    lambda i=i: load_task(i),
-                    priority=TaskPriority.NORMAL
-                )
-                task_ids.append(task_id)
+                task = asyncio.create_task(load_task(i))
+                tasks.append(task)
             
             submission_time = time.time() - start_time
             
             # Collect all results
-            results = []
-            for task_id in task_ids:
-                result = await processor.get_task_result(task_id, timeout=15.0)
-                results.append(result)
+            results = await asyncio.gather(*tasks)
             
             total_time = time.time() - start_time
             

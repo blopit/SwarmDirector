@@ -228,6 +228,45 @@ class AuthValidator:
             "rate_limit": 100  # requests per hour
         }
 
+def validate_json(schema: Dict[str, Any] = None):
+    """Decorator factory for validating JSON requests against a schema."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            try:
+                # 1. Content-type validation
+                RequestValidator.validate_content_type()
+                
+                # 2. JSON body validation
+                data = RequestValidator.validate_json_body()
+                
+                # 3. Schema validation
+                if schema:
+                    SchemaValidator.validate_schema(data, schema)
+
+                # 4. Add validated data to request
+                request.validated_data = data
+                
+                return f(*args, **kwargs)
+                
+            except ValidationError as e:
+                return jsonify({
+                    'status': 'error',
+                    'error': e.message,
+                    'error_code': e.error_code,
+                    'field': e.field
+                }), 400
+            except Exception as e:
+                logger.error(f"Unexpected validation error: {str(e)}")
+                return jsonify({
+                    'status': 'error',
+                    'error': 'Internal validation error',
+                    'error_code': 'INTERNAL_ERROR'
+                }), 500
+                
+        return decorated_function
+    return decorator
+
 def require_auth(f):
     """Decorator to require authentication for endpoint"""
     @wraps(f)
@@ -247,57 +286,67 @@ def require_auth(f):
     return decorated_function
 
 def validate_request(schema: Dict[str, Any] = None, require_auth: bool = False):
-    """Decorator for comprehensive request validation"""
+    """Comprehensive request validation decorator"""
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             try:
-                # 1. Content-type validation
+                # Validate content type
                 RequestValidator.validate_content_type()
                 
-                # 2. JSON body validation
+                # Validate and parse JSON body
                 data = RequestValidator.validate_json_body()
                 
-                # 3. Schema validation
-                validated_data = SchemaValidator.validate_schema(data, schema)
+                # Schema validation
+                if schema:
+                    data = SchemaValidator.validate_schema(data, schema)
                 
-                # 4. Authentication validation (if required)
+                # Authentication validation
                 if require_auth:
                     token = AuthValidator.extract_auth_token()
-                    user_info = AuthValidator.validate_auth_token(token)
-                    request.user_info = user_info
+                    if not token:
+                        return jsonify({
+                            'error': 'Authentication required',
+                            'error_code': 'MISSING_AUTH_TOKEN'
+                        }), 401
+                    
+                    try:
+                        user_info = AuthValidator.validate_auth_token(token)
+                        # Add user info to request context
+                        request.user_info = user_info
+                    except ValidationError as e:
+                        return jsonify({
+                            'error': e.message,
+                            'error_code': e.error_code
+                        }), 401
                 
-                # 5. Add validated data to request
-                request.validated_data = validated_data
+                # Add validated data to request context
+                request.validated_data = data
                 
                 return f(*args, **kwargs)
                 
             except ValidationError as e:
-                status_code = 401 if e.error_code in ['MISSING_AUTH_TOKEN', 'INVALID_AUTH_TOKEN'] else 400
                 return jsonify({
-                    'status': 'error',
                     'error': e.message,
                     'error_code': e.error_code,
                     'field': e.field
-                }), status_code
+                }), 400
             except Exception as e:
-                logger.error(f"Unexpected validation error: {str(e)}")
+                logger.error(f"Request validation error: {e}")
                 return jsonify({
-                    'status': 'error',
                     'error': 'Internal validation error',
-                    'error_code': 'INTERNAL_ERROR'
+                    'error_code': 'VALIDATION_INTERNAL_ERROR'
                 }), 500
-                
+        
         return decorated_function
     return decorator
 
-
-def validate_json_data(request, required_fields: List[str] = None) -> Dict[str, Any]:
+def validate_json_data(request_obj, required_fields: List[str] = None) -> Dict[str, Any]:
     """
-    Validate JSON data from request and check for required fields.
+    Validate JSON data from a Flask request object.
     
     Args:
-        request: Flask request object
+        request_obj: Flask request object
         required_fields: List of required field names
         
     Returns:
@@ -312,18 +361,18 @@ def validate_json_data(request, required_fields: List[str] = None) -> Dict[str, 
     # Validate content type
     RequestValidator.validate_content_type('application/json')
     
-    # Get and validate JSON body
+    # Validate and parse JSON body
     data = RequestValidator.validate_json_body()
     
     # Check required fields
     missing_fields = []
     for field in required_fields:
-        if field not in data or data[field] is None:
+        if field not in data or data[field] is None or data[field] == '':
             missing_fields.append(field)
     
     if missing_fields:
         raise ValidationError(
-            f"Missing required fields: {', '.join(missing_fields)}", 
+            f"Missing required fields: {', '.join(missing_fields)}",
             "MISSING_REQUIRED_FIELDS"
         )
     

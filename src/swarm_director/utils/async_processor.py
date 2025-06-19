@@ -587,7 +587,8 @@ def initialize_async_processor(config: Optional[AsyncProcessorConfig] = None) ->
     global async_processor
     
     if async_processor is not None:
-        raise ValueError("AsyncProcessor already initialized")
+        logger.warning("AsyncProcessor already initialized, returning existing instance")
+        return async_processor
     
     async_processor = AsyncProcessor(config)
     return async_processor
@@ -598,4 +599,12 @@ async def shutdown_async_processor():
     
     if async_processor:
         await async_processor.stop()
-        async_processor = None 
+        async_processor = None
+
+def reset_async_processor():
+    """Reset the global async processor instance for testing"""
+    global async_processor
+    
+    # Set the global instance to None without async shutdown
+    # This is intended for test cleanup where we want to reset state
+    async_processor = None 

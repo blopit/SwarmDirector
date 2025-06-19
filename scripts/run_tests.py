@@ -36,7 +36,7 @@ def trigger_task_event(event_type, task_id=None, status=None, metadata=None):
         from swarm_director.utils.automation import trigger_task_automation
         trigger_task_automation(event_type, task_id or "test_run", metadata or {})
     except Exception as e:
-        print(f"⚠️  Task event trigger failed: {e}")
+        print("⚠️  Task event trigger failed: " + str(e))
 
 def check_pytest_installation():
     """Check if pytest is installed, install if missing"""
@@ -50,7 +50,7 @@ def check_pytest_installation():
             print("✅ pytest installed successfully")
             return True
         except subprocess.CalledProcessError as e:
-            print(f"❌ Failed to install pytest: {e}")
+            print("❌ Failed to install pytest: " + str(e))
             return False
 
 
@@ -60,7 +60,7 @@ def run_pytest_tests(verbose=False, coverage=False, specific_test=None):
     print("=" * 60)
     
     # Report test start
-    trigger_task_event(AutomationEventType.TASK_STARTED, task_id="pytest_run", 
+    trigger_task_event(AutomationEventType.TASK_CREATED, task_id="pytest_run", 
                       metadata={"test_type": "pytest", "coverage": coverage, "specific_test": specific_test})
     
     # Build pytest command
@@ -86,7 +86,7 @@ def run_pytest_tests(verbose=False, coverage=False, specific_test=None):
     
     # Set environment variables for proper imports
     env = os.environ.copy()
-    env['PYTHONPATH'] = f"{src_path}:{project_root}:{env.get('PYTHONPATH', '')}"
+    env['PYTHONPATH'] = str(src_path) + ":" + str(project_root) + ":" + env.get('PYTHONPATH', '')
     
     try:
         result = subprocess.run(cmd, cwd=project_root, capture_output=False, env=env)
@@ -101,7 +101,7 @@ def run_pytest_tests(verbose=False, coverage=False, specific_test=None):
         
         return success
     except subprocess.CalledProcessError as e:
-        print(f"❌ pytest execution failed: {e}")
+        print("❌ pytest execution failed: " + str(e))
         trigger_task_event(AutomationEventType.TASK_FAILED, task_id="pytest_run",
                           metadata={"error": str(e), "execution_failed": True})
         return False
@@ -127,22 +127,22 @@ def run_standalone_tests():
         for test_file in test_files:
             test_path = project_root / "tests" / test_file
             if test_path.exists():
-                print(f"\n📋 Running {test_file}...")
+                print("\n📋 Running " + test_file + "...")
                 try:
                     # Import and run the test if it has a run function
                     module_name = test_file.replace('.py', '')
-                    spec = __import__(f"tests.{module_name}", fromlist=[module_name])
+                    spec = __import__("tests." + module_name, fromlist=[module_name])
                     if hasattr(spec, 'run_tests'):
                         result = spec.run_tests()
                         if not result:
                             success = False
-                            print(f"❌ {test_file} failed")
+                            print("❌ " + test_file + " failed")
                         else:
-                            print(f"✅ {test_file} passed")
+                            print("✅ " + test_file + " passed")
                     else:
-                        print(f"⚠️  {test_file} has no run_tests function, skipping standalone run")
+                        print("⚠️  " + test_file + " has no run_tests function, skipping standalone run")
                 except Exception as e:
-                    print(f"❌ Error running {test_file}: {e}")
+                    print("❌ Error running " + test_file + ": " + str(e))
                     success = False
     finally:
         sys.path[:] = old_path
@@ -171,17 +171,17 @@ def main():
     
     print("🚀 SwarmDirector Test Runner")
     print("=" * 60)
-    print(f"📁 Project root: {project_root}")
-    print(f"🐍 Python version: {sys.version}")
-    print(f"📂 Source path: {src_path}")
+    print("📁 Project root: " + str(project_root))
+    print("🐍 Python version: " + sys.version)
+    print("📂 Source path: " + str(src_path))
     
     # Initialize task tracking for test run
-    trigger_task_event(AutomationEventType.TASK_STARTED, task_id="test_suite", 
+    trigger_task_event(AutomationEventType.TASK_CREATED, task_id="test_suite", 
                       metadata={"test_runner": "main", "args": vars(args)})
     
     # Create reports directory
     reports_dir = create_reports_directory()
-    print(f"📊 Reports directory: {reports_dir}")
+    print("📊 Reports directory: " + str(reports_dir))
     
     # Check and install pytest if needed
     if args.install_deps or not args.standalone:
@@ -210,7 +210,7 @@ def main():
     if success:
         print("🎉 All tests passed!")
         if args.coverage:
-            print(f"📊 Coverage report available at: {reports_dir}/coverage/index.html")
+            print("📊 Coverage report available at: " + str(reports_dir) + "/coverage/index.html")
         trigger_task_event(AutomationEventType.TASK_COMPLETED, task_id="test_suite",
                           metadata={"all_tests_passed": True, "coverage_enabled": args.coverage})
     else:

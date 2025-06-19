@@ -1,0 +1,37 @@
+{
+  "tool": {
+    "name": "EmailToolAgent",
+    "description": "Specialized tool agent for email operations",
+    "capabilities": [
+      "email_sending",
+      "template_processing",
+      "personalization",
+      "smtp_integration",
+      "email_validation"
+    ]
+  },
+  "department": {
+    "name": "CommunicationsDepartment",
+    "description": "Communications department supervisor for email review",
+    "capabilities": [
+      "email_review",
+      "content_validation",
+      "brand_compliance",
+      "quality_control",
+      "approval_workflow",
+      "template_management"
+    ]
+  },
+  "director": {
+    "name": "MarketingDirector",
+    "description": "Marketing director for final approval and strategic oversight",
+    "capabilities": [
+      "final_approval",
+      "strategic_oversight",
+      "policy_compliance",
+      "brand_governance",
+      "customer_experience",
+      "regulatory_compliance"
+    ]
+  }
+}

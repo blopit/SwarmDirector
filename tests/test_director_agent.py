@@ -113,7 +113,7 @@ class TestDirectorAgent:
             assert result['task_id'] == task.id
             
             # Verify task was completed
-            updated_task = Task.query.get(task.id)
+            updated_task = db.session.get(Task, task.id)
             assert updated_task.status == TaskStatus.COMPLETED
     
     def test_routing_stats_update(self, app, director_agent):

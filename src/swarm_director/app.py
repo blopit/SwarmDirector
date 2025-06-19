@@ -13,6 +13,8 @@ load_dotenv()
 
 # Initialize extensions
 from .models.base import db
+# Import all models to ensure they are registered with SQLAlchemy
+from .models import *
 migrate = Migrate()
 mail = Mail()
 
@@ -110,18 +112,13 @@ def create_app(config_name='default'):
         initialize_cost_tracking_system(app)
     except Exception as e:
         app.logger.warning(f"Cost tracking system initialization failed: {e}")
-    
-    # Import models to ensure they're registered with SQLAlchemy
-    try:
-        from .models.base import db as models_db
-        # Import all models to register them
-        from .models.agent import Agent
-        from .models.task import Task
-        from .models.conversation import Conversation, Message
-    except ImportError as e:
-        # Models import failed, log the error but continue
-        print(f"Warning: Could not import models - {e}")
-        pass
+
+    # Initialize validation and plugin system
+    # This is now handled by registering the blueprint in register_routes
+    # try:
+    #     initialize_validation_plugin_system(app)
+    # except Exception as e:
+    #     app.logger.warning(f"Validation and plugin system initialization failed: {e}")
     
     # Register CLI commands
     register_database_commands(app)
@@ -165,6 +162,10 @@ def register_error_handlers(app):
 def register_routes(app):
     """Register application routes"""
     
+    # Import and register the validation blueprint
+    from .api.validation_routes import validation_bp
+    app.register_blueprint(validation_bp)
+
     @app.route('/')
     def index():
         """Health check endpoint"""
@@ -3403,6 +3404,22 @@ def register_websocket_routes(app):
         register_ws_routes(app)
     except Exception as e:
         app.logger.error(f"Failed to register WebSocket routes: {str(e)}")
+
+
+def initialize_validation_plugin_system(app):
+    """Initialize the validation and plugin system"""
+    try:
+        from .integration_setup import init_validation_plugin_integration
+
+        # Initialize the integration
+        integration = init_validation_plugin_integration(app)
+
+        app.logger.info("Validation and plugin system initialized successfully")
+        return integration
+
+    except Exception as e:
+        app.logger.error(f"Failed to initialize validation and plugin system: {str(e)}")
+        raise
 
 
 def setup_alerting_system(app):

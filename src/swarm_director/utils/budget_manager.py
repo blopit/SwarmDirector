@@ -258,7 +258,7 @@ class BudgetManager:
     
     def get_budget_status(self, budget_id: int) -> Dict[str, Any]:
         """Get current status of a budget"""
-        budget = db.session.query(CostBudget).get(budget_id)
+        budget = db.session.get(CostBudget, budget_id)
         if not budget:
             raise ValueError(f"Budget {budget_id} not found")
         

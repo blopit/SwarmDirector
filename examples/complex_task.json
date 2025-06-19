@@ -1,0 +1,38 @@
+{
+  "title": "Analyze customer behavior and generate ML insights",
+  "description": "Perform comprehensive machine learning analysis on customer behavior data from the past 6 months. Generate predictive insights for customer churn, lifetime value, and product recommendations. Create executive dashboard with key findings.",
+  "priority": "high",
+  "input_data": {
+    "type": "ml_analysis",
+    "data_sources": [
+      "customer_transactions",
+      "website_interactions",
+      "support_tickets",
+      "email_engagement",
+      "product_usage"
+    ],
+    "analysis_period": {
+      "start_date": "2023-07-01",
+      "end_date": "2023-12-31"
+    },
+    "analysis_types": [
+      "churn_prediction",
+      "lifetime_value_calculation",
+      "segmentation_analysis",
+      "recommendation_engine",
+      "trend_analysis"
+    ],
+    "output_requirements": {
+      "formats": ["dashboard", "report", "api_endpoints"],
+      "visualizations": ["charts", "heatmaps", "trend_lines"],
+      "confidence_intervals": true,
+      "statistical_significance": true
+    },
+    "model_requirements": {
+      "algorithms": ["random_forest", "gradient_boosting", "neural_networks"],
+      "validation_method": "cross_validation",
+      "feature_importance": true,
+      "explainability": true
+    }
+  }
+}

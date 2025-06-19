@@ -1,13 +1,14 @@
 """Test concurrent request handling functionality"""
 import pytest
+import pytest_asyncio
 import asyncio
 import time
 import json
 from unittest.mock import patch, MagicMock
 
-from src.swarm_director.utils.async_processor import AsyncProcessor, AsyncProcessorConfig, TaskPriority
-from src.swarm_director.utils.concurrency import ConcurrencyManager, initialize_concurrency_manager
-from src.swarm_director.utils.resource_monitor import ResourceMonitorConfig
+from src.swarm_director.utils.async_processor import AsyncProcessor, AsyncProcessorConfig, TaskPriority, ProcessorState
+from src.swarm_director.utils.concurrency import ConcurrencyManager
+from src.swarm_director.utils.resource_monitor import ResourceMonitor, ResourceMonitorConfig, ResourceThresholds
 
 
 class TestConcurrentProcessing:
@@ -31,8 +32,6 @@ class TestConcurrentProcessing:
     @pytest.fixture
     def demo_resource_config(self):
         """Demo-optimized resource monitor configuration"""
-        from src.swarm_director.utils.resource_monitor import ResourceThresholds
-        
         thresholds = ResourceThresholds(
             cpu_critical=85.0,
             memory_critical=85.0,
@@ -44,12 +43,26 @@ class TestConcurrentProcessing:
             thresholds=thresholds
         )
     
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def concurrency_manager(self, demo_async_config, demo_resource_config):
-        """Initialize concurrency manager for testing"""
-        manager = initialize_concurrency_manager(demo_async_config, demo_resource_config)
-        await manager.initialize()
+        """Initialize a fresh concurrency manager for each test."""
+        # Directly instantiate components to ensure isolation
+        async_processor = AsyncProcessor(demo_async_config)
+        resource_monitor = ResourceMonitor(demo_resource_config)
+        
+        # Create a new manager and manually assign the fresh components
+        manager = ConcurrencyManager(demo_async_config, demo_resource_config)
+        manager.async_processor = async_processor
+        manager.resource_monitor = resource_monitor
+        
+        # Manually initialize
+        await manager.async_processor.start()
+        await manager.resource_monitor.start()
+        manager.is_initialized = True
+        
         yield manager
+        
+        # Manually shutdown
         await manager.shutdown()
     
     @pytest.mark.asyncio
@@ -58,7 +71,7 @@ class TestConcurrentProcessing:
         processor = AsyncProcessor(demo_async_config)
         await processor.start()
         
-        assert processor.state.value == 'running'
+        assert processor.state == ProcessorState.RUNNING
         assert processor.config.max_concurrent_tasks == 15
         assert processor.config.worker_thread_count == 8
         assert processor.config.task_timeout_seconds == 30
@@ -69,7 +82,7 @@ class TestConcurrentProcessing:
     async def test_concurrency_manager_initialization(self, concurrency_manager):
         """Test that concurrency manager initializes correctly"""
         assert concurrency_manager.is_initialized
-        assert concurrency_manager.async_processor.state.value == 'running'
+        assert concurrency_manager.async_processor.state == ProcessorState.RUNNING
         assert concurrency_manager.resource_monitor is not None
     
     @pytest.mark.asyncio
@@ -197,19 +210,24 @@ class TestFlaskIntegration:
         }
         
         response = client.post('/task', 
-                             data=json.dumps(task_data),
-                             content_type='application/json')
+                               data=json.dumps(task_data),
+                               content_type='application/json')
         
-        assert response.status_code in [201, 202]  # Either sync (201) or async (202)
+        assert response.status_code == 202
+        assert 'task_id' in response.json
         
-        data = json.loads(response.data)
-        assert data['success'] is True
-        assert 'task_id' in data['data']
+        task_id = response.json['task_id']
         
-        if response.status_code == 202:  # Async processing
-            assert 'async_task_id' in data['data']
-            assert 'check_status_url' in data['data']
-            assert 'get_result_url' in data['data']
+        # Poll for result
+        for _ in range(10):
+            time.sleep(1)
+            res_response = client.get(f'/task/{task_id}')
+            if res_response.status_code == 200:
+                assert res_response.json['status'] == 'completed'
+                assert res_response.json['result']['message'] == 'Test task completed successfully'
+                return
+        
+        pytest.fail("Task did not complete in time")
 
 
 if __name__ == "__main__":

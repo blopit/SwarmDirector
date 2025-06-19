@@ -191,7 +191,7 @@ class TestValidateRequestDecorator:
             data=json.dumps({"type": "test_task", "title": "Test"}),
             content_type='application/json'
         ):
-            @validate_request()
+            @validate_request(schema=BASE_TASK_SCHEMA)
             def test_endpoint():
                 return {"status": "success"}, 200
             
@@ -206,7 +206,7 @@ class TestValidateRequestDecorator:
             data="not json",
             content_type='text/plain'
         ):
-            @validate_request()
+            @validate_request(schema=BASE_TASK_SCHEMA)
             def test_endpoint():
                 return {"status": "success"}, 200
             
@@ -214,7 +214,7 @@ class TestValidateRequestDecorator:
             assert result[1] == 400
             # Check the actual response content, not the string representation
             response_data = result[0].get_data(as_text=True)
-            assert "MISSING_CONTENT_TYPE" in response_data or "INVALID_CONTENT_TYPE" in response_data
+            assert "INVALID_CONTENT_TYPE" in response_data
     
     def test_invalid_json(self):
         """Test decorator with invalid JSON"""
@@ -224,7 +224,7 @@ class TestValidateRequestDecorator:
             data="invalid json {",
             content_type='application/json'
         ):
-            @validate_request()
+            @validate_request(schema=BASE_TASK_SCHEMA)
             def test_endpoint():
                 return {"status": "success"}, 200
             

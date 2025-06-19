@@ -1,0 +1,355 @@
+# Hierarchical Validation System and Plugin Architecture Configuration
+
+# System-wide settings
+system:
+  name: "SwarmDirector Validation & Plugin System"
+  version: "1.0.0"
+  debug_mode: false
+  log_level: "INFO"
+
+# Validation Chain Configuration
+validation:
+  # Enable/disable validation chain
+  enabled: true
+  
+  # Parallel validation processing
+  parallel_processing: true
+  max_concurrent_validations: 4
+  
+  # Timeouts (in seconds)
+  validation_timeout: 300
+  rollback_timeout: 60
+  
+  # History retention
+  history_retention_days: 30
+  max_history_entries: 1000
+  
+  # Quality Gates Configuration
+  quality_gates:
+    tool:
+      name: "tool_quality_gate"
+      thresholds:
+        - metric: "completeness"
+          minimum_score: 0.8
+          weight: 1.5
+          critical: true
+          description: "Tool output must be substantially complete"
+        - metric: "accuracy"
+          minimum_score: 0.7
+          weight: 1.0
+          critical: false
+          description: "Tool output should be reasonably accurate"
+        - metric: "performance"
+          minimum_score: 0.6
+          weight: 0.5
+          critical: false
+          description: "Execution should meet performance standards"
+    
+    department:
+      name: "department_quality_gate"
+      thresholds:
+        - metric: "accuracy"
+          minimum_score: 0.85
+          weight: 1.5
+          critical: true
+          description: "Department output must be highly accurate"
+        - metric: "completeness"
+          minimum_score: 0.9
+          weight: 1.2
+          critical: true
+          description: "Department output must be comprehensive"
+        - metric: "consistency"
+          minimum_score: 0.8
+          weight: 1.0
+          critical: false
+          description: "Output should be consistent with standards"
+        - metric: "relevance"
+          minimum_score: 0.8
+          weight: 1.0
+          critical: false
+          description: "Output should be relevant to task requirements"
+    
+    director:
+      name: "director_quality_gate"
+      thresholds:
+        - metric: "accuracy"
+          minimum_score: 0.9
+          weight: 2.0
+          critical: true
+          description: "Director validation requires high accuracy"
+        - metric: "completeness"
+          minimum_score: 0.95
+          weight: 1.8
+          critical: true
+          description: "Final output must be complete"
+        - metric: "compliance"
+          minimum_score: 0.9
+          weight: 1.5
+          critical: true
+          description: "Must comply with all policies and standards"
+        - metric: "clarity"
+          minimum_score: 0.85
+          weight: 1.0
+          critical: false
+          description: "Output should be clear and well-structured"
+
+# Plugin System Configuration
+plugins:
+  # Enable/disable plugin system
+  enabled: true
+  
+  # Auto-features
+  auto_install_enabled: true
+  auto_discovery_enabled: true
+  
+  # Plugin registry
+  registry:
+    path: "~/.swarm_director/plugins/registry.json"
+    backup_enabled: true
+    backup_interval_hours: 24
+  
+  # Dependency management
+  dependencies:
+    cache_dir: "~/.swarm_director/dependencies"
+    auto_cleanup_enabled: true
+    cleanup_interval_days: 7
+    max_retry_attempts: 3
+    timeout_seconds: 300
+  
+  # Plugin installation
+  installation:
+    max_concurrent_installs: 2
+    verify_signatures: true
+    sandbox_mode: false
+    rollback_on_failure: true
+  
+  # Plugin sources (for future marketplace integration)
+  sources:
+    - name: "official"
+      url: "https://plugins.swarmdirector.com/official"
+      enabled: true
+      trusted: true
+    - name: "community"
+      url: "https://plugins.swarmdirector.com/community"
+      enabled: false
+      trusted: false
+
+# Agent Factory Configuration
+agent_factory:
+  # Enable/disable agent factory
+  enabled: true
+  
+  # Creation strategies
+  default_strategy: "hybrid"  # template_based, plugin_based, hybrid, dynamic
+  
+  # Template management
+  templates:
+    builtin_enabled: true
+    custom_templates_dir: "~/.swarm_director/templates"
+    auto_register_custom: true
+  
+  # Agent creation limits
+  max_concurrent_creations: 3
+  creation_timeout_seconds: 180
+  
+  # Capability matching
+  capability_matching:
+    minimum_match_threshold: 0.5
+    prefer_exact_matches: true
+    allow_partial_matches: true
+
+# Capability Discovery Configuration
+capability_discovery:
+  # Enable/disable capability discovery
+  enabled: true
+  
+  # Discovery methods
+  methods:
+    - "keyword_analysis"
+    - "task_type_mapping"
+    - "ml_classification"  # Future enhancement
+  
+  # Gap analysis
+  gap_analysis:
+    severity_thresholds:
+      critical: 0.9
+      high: 0.7
+      medium: 0.5
+      low: 0.3
+    
+    impact_calculation:
+      core_capability_weight: 0.9
+      domain_capability_weight: 0.7
+      utility_capability_weight: 0.5
+  
+  # Plugin suggestions
+  suggestions:
+    max_suggestions_per_gap: 3
+    relevance_threshold: 0.6
+    include_experimental: false
+
+# Rollback Management Configuration
+rollback:
+  # Enable/disable rollback system
+  enabled: true
+  
+  # Rollback triggers
+  triggers:
+    critical_validation_failure: true
+    system_errors: true
+    dependency_failures: true
+    timeout_exceeded: true
+  
+  # Rollback actions
+  actions:
+    revert_data: true
+    restore_state: true
+    cleanup_resources: true
+    notify_stakeholders: false  # Set to true in production
+    log_incidents: true
+  
+  # Rollback timeouts
+  timeouts:
+    step_timeout_seconds: 30
+    total_timeout_seconds: 300
+    retry_attempts: 3
+
+# Monitoring and Analytics Configuration
+monitoring:
+  # Enable/disable monitoring
+  enabled: true
+  
+  # Metrics collection
+  metrics:
+    validation_metrics: true
+    plugin_metrics: true
+    performance_metrics: true
+    capability_metrics: true
+  
+  # Data retention
+  retention:
+    metrics_retention_days: 90
+    logs_retention_days: 30
+    analytics_retention_days: 365
+  
+  # Alerting (future enhancement)
+  alerting:
+    enabled: false
+    channels:
+      - type: "email"
+        config:
+          recipients: ["admin@example.com"]
+      - type: "webhook"
+        config:
+          url: "https://hooks.slack.com/services/..."
+  
+  # Health checks
+  health_checks:
+    interval_seconds: 300
+    timeout_seconds: 30
+    failure_threshold: 3
+
+# Security Configuration
+security:
+  # Plugin security
+  plugin_security:
+    verify_signatures: true
+    sandbox_execution: false  # Future enhancement
+    permission_model: "basic"  # basic, advanced
+  
+  # Validation security
+  validation_security:
+    encrypt_sensitive_data: true
+    audit_trail: true
+    access_control: true
+  
+  # API security (if exposing validation/plugin APIs)
+  api_security:
+    authentication_required: true
+    rate_limiting: true
+    request_validation: true
+
+# Performance Configuration
+performance:
+  # Caching
+  caching:
+    enabled: true
+    validation_cache_ttl_seconds: 3600
+    plugin_cache_ttl_seconds: 86400
+    capability_cache_ttl_seconds: 7200
+  
+  # Resource limits
+  resource_limits:
+    max_memory_mb: 1024
+    max_cpu_percent: 80
+    max_disk_mb: 2048
+  
+  # Optimization
+  optimization:
+    lazy_loading: true
+    batch_processing: true
+    compression: true
+
+# Development and Testing Configuration
+development:
+  # Debug features
+  debug:
+    verbose_logging: false
+    trace_validation_steps: false
+    dump_intermediate_results: false
+  
+  # Testing
+  testing:
+    mock_plugins: false
+    simulate_failures: false
+    test_data_dir: "tests/data"
+  
+  # Development tools
+  tools:
+    auto_reload: false
+    profiling: false
+    benchmarking: false
+
+# Environment-specific overrides
+environments:
+  development:
+    system:
+      debug_mode: true
+      log_level: "DEBUG"
+    validation:
+      validation_timeout: 60
+    plugins:
+      auto_install_enabled: false
+    security:
+      plugin_security:
+        verify_signatures: false
+  
+  testing:
+    system:
+      debug_mode: true
+    validation:
+      enabled: true
+      parallel_processing: false
+    plugins:
+      auto_install_enabled: false
+    development:
+      testing:
+        mock_plugins: true
+  
+  production:
+    system:
+      debug_mode: false
+      log_level: "WARNING"
+    validation:
+      parallel_processing: true
+    plugins:
+      auto_install_enabled: true
+    security:
+      plugin_security:
+        verify_signatures: true
+      validation_security:
+        encrypt_sensitive_data: true
+        audit_trail: true
+    monitoring:
+      alerting:
+        enabled: true

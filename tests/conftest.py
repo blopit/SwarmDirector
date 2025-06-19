@@ -4,7 +4,6 @@ Pytest configuration and fixtures for SwarmDirector tests
 
 import sys
 import os
-import tempfile
 import shutil
 import glob
 from pathlib import Path
@@ -15,98 +14,127 @@ src_path = project_root / "src"
 sys.path.insert(0, str(src_path))
 
 import pytest
-from swarm_director.app import create_app
-from swarm_director.models.base import db
+from unittest.mock import Mock
+from src.swarm_director.app import create_app
+from src.swarm_director.models import (
+    db as _db,
+    Agent,
+    Task,
+    Conversation,
+    Message,
+    ConversationAnalytics,
+    AgentLog,
+    Draft,
+    EmailMessage,
+    APIUsage,
+    CostBudget,
+    CostAlert,
+    ValidationRecord,
+    QualityGateConfig,
+    RollbackRecord,
+    PluginRecord,
+    PluginInstallation,
+    CapabilityGap,
+    AgentTemplate,
+)
+from swarm_director.utils.concurrency import reset_concurrency_manager
+from swarm_director.utils.async_processor import reset_async_processor
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def app():
-    """Create and configure a test app instance"""
+    """
+    Create a new application instance for each test.
+    This uses an in-memory SQLite database for isolation and speed.
+    """
     app = create_app('testing')
-    app.config['TESTING'] = True
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    app.config['TESTING'] = True
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     with app.app_context():
-        db.create_all()
+        _db.create_all()
         yield app
-        db.drop_all()
+        _db.session.remove()
+        _db.drop_all()
+
+@pytest.fixture(scope='function')
+def db(app):
+    """
+    Provides the database instance for a test.
+    Relies on the `app` fixture to handle creation and teardown.
+    """
+    with app.app_context():
+        yield _db
 
 @pytest.fixture
 def client(app):
-    """Create a test client for the app"""
+    """Create a test client for the app."""
     return app.test_client()
 
 @pytest.fixture
 def runner(app):
-    """Create a test runner for CLI commands"""
+    """Create a test runner for the app's Click commands."""
     return app.test_cli_runner()
 
+@pytest.fixture(autouse=True)
+def cleanup_singletons():
+    """
+    Resets all singleton managers after each test to ensure isolation.
+    """
+    yield
+    # Clean up concurrency and async processor managers
+    try:
+        reset_concurrency_manager()
+        reset_async_processor()
+    except Exception as e:
+        print(f"⚠️  Error during singleton cleanup: {e}")
+
+@pytest.fixture
+def mock_openai_client():
+    """Mock OpenAI client for testing."""
+    return Mock()
+
+@pytest.fixture
+def mock_agent():
+    """Mock agent for testing."""
+    agent = Mock()
+    agent.id = 1
+    agent.name = "TestAgent"
+    agent.agent_type = "test"
+    return agent
+
 @pytest.fixture(scope="session", autouse=True)
-def cleanup_test_artifacts():
-    """Automatically clean up test artifacts after all tests complete"""
+def cleanup_test_artifacts_session():
+    """
+    Automatically clean up leftover test artifacts at the end of the session.
+    This targets files that might not have been cleaned up if tests errored out.
+    """
     yield
 
-    # Clean up any test backup/migration directories
+    # Clean up any test backup/migration directories from previous runs
     project_root = Path(__file__).parent.parent
 
-    print("\n🧹 Cleaning up test artifacts...")
+    print("\n🧹 Cleaning up test artifacts from session...")
 
     # Remove timestamped test directories
-    for pattern in ['test_backups_*', 'test_migrations_*']:
+    for pattern in ['pytest_backups_*', 'pytest_migrations_*', 'test_backups_*', 'test_migrations_*']:
         for path in glob.glob(str(project_root / pattern)):
             try:
                 if os.path.isdir(path):
                     shutil.rmtree(path)
-                    print(f"🧹 Removed test directory: {path}")
+                    print(f"🧹 Removed test artifact directory: {path}")
             except (OSError, PermissionError) as e:
                 print(f"⚠️  Could not remove {path}: {e}")
 
     # Clean up test database files in instance directory
     instance_dir = project_root / "instance"
     if instance_dir.exists():
-        for pattern in ['*_test_*.db', '*_test_*.db-*']:
+        for pattern in ['*_pytest_*.db', '*_pytest_*.db-*', '*_test_*.db', '*_test_*.db-*']:
             for db_file in instance_dir.glob(pattern):
                 try:
                     db_file.unlink()
-                    print(f"🧹 Removed test database: {db_file}")
+                    print(f"🧹 Removed test artifact database: {db_file}")
                 except (OSError, PermissionError) as e:
                     print(f"⚠️  Could not remove {db_file}: {e}")
 
-    print("✅ Test artifact cleanup completed")
-
-@pytest.fixture
-def temp_test_app():
-    """Create a test app with proper temporary directories for database tests"""
-    import time
-    timestamp = str(int(time.time() * 1000))
-
-    # Create temporary directories
-    backup_temp_dir = tempfile.mkdtemp(prefix=f'pytest_backups_{timestamp}_')
-    migrations_temp_dir = tempfile.mkdtemp(prefix=f'pytest_migrations_{timestamp}_')
-
-    # Create temporary database file
-    db_temp_file = tempfile.NamedTemporaryFile(
-        suffix=f'_pytest_{timestamp}.db',
-        delete=False
-    )
-    db_temp_file.close()
-
-    app = create_app('testing')
-    app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_temp_file.name}'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['DATABASE_PATH'] = db_temp_file.name
-    app.config['BACKUP_DIR'] = backup_temp_dir
-    app.config['MIGRATIONS_DIR'] = migrations_temp_dir
-
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.drop_all()
-
-    # Cleanup temporary files and directories
-    try:
-        os.unlink(db_temp_file.name)
-        shutil.rmtree(backup_temp_dir)
-        shutil.rmtree(migrations_temp_dir)
-    except (OSError, PermissionError):
-        pass
+    print("✅ Session artifact cleanup completed") 

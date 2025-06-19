@@ -132,19 +132,37 @@ class ResourceError(Exception):
 # Global concurrency manager instance
 concurrency_manager: Optional[ConcurrencyManager] = None
 
+def reset_concurrency_manager():
+    """Reset the global concurrency manager for testing"""
+    global concurrency_manager
+    concurrency_manager = None
+
 def get_concurrency_manager() -> Optional[ConcurrencyManager]:
     """Get the global concurrency manager instance"""
     return concurrency_manager
 
 def initialize_concurrency_manager(
     async_config: Optional[AsyncProcessorConfig] = None,
-    resource_config: Optional[ResourceMonitorConfig] = None
+    resource_config: Optional[ResourceMonitorConfig] = None,
+    force_reinit: bool = False
 ) -> ConcurrencyManager:
     """Initialize the global concurrency manager"""
     global concurrency_manager
     
-    if concurrency_manager is not None:
-        raise ValueError("ConcurrencyManager already initialized")
+    if concurrency_manager is not None and not force_reinit:
+        logger.warning("ConcurrencyManager already initialized, returning existing instance")
+        return concurrency_manager
+    
+    # If forcing re-initialization, clean up existing
+    if concurrency_manager is not None and force_reinit:
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if not loop.is_closed():
+                loop.create_task(concurrency_manager.shutdown())
+        except RuntimeError:
+            pass  # No event loop running
+        concurrency_manager = None
     
     concurrency_manager = ConcurrencyManager(async_config, resource_config)
     return concurrency_manager
