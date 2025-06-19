@@ -27,9 +27,14 @@ class TestEmailAgent:
     
     @pytest.fixture
     def email_agent(self, mock_agent, app):
-        """Create EmailAgent instance for testing"""
+        """Create EmailAgent instance"""
         with app.app_context():
-            return EmailAgent(mock_agent)
+            # Initialize database with test app to fix SQLAlchemy registration
+            from src.swarm_director.models.base import db
+            db.init_app(app)
+            
+            from src.swarm_director.agents.email_agent import EmailAgent
+            return EmailAgent(db_agent=mock_agent)
     
     @pytest.fixture
     def sample_task(self):
@@ -253,7 +258,7 @@ class TestEmailAgent:
         # Mock draft creation
         mock_draft_instance = Mock()
         mock_draft_instance.id = 1
-        mock_draft_instance.save = Mock()
+        mock_draft_instance.save = Mock(return_value=True)  # Mock save to return success
         mock_draft.return_value = mock_draft_instance
         
         compose_data = {
@@ -264,13 +269,15 @@ class TestEmailAgent:
         }
         
         with app.app_context():
-            result = email_agent._compose_email(sample_task, compose_data)
+            # Mock the complete_task method to avoid database issues
+            with patch.object(sample_task, 'complete_task') as mock_complete:
+                result = email_agent._compose_email(sample_task, compose_data)
         
         assert result['status'] == 'success'
         assert result['draft_id'] == 1
         assert result['composed_email']['subject'] == 'Manual Subject'
         assert result['composed_email']['body'] == 'Manual body content'
-        sample_task.complete_task.assert_called_once()
+        mock_complete.assert_called_once()
 
     def test_validate_email_operation(self, email_agent, sample_task):
         """Test email validation operation"""

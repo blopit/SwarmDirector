@@ -24,6 +24,9 @@ class TestConversationTrackingIntegration(unittest.TestCase):
         self.app_context.push()
         self.client = self.app.test_client()
         
+        # Initialize database with test app
+        db.init_app(self.app)
+        
         db.create_all()
     
     def tearDown(self):
