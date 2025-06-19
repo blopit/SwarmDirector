@@ -27,14 +27,9 @@ class TestEmailAgent:
     
     @pytest.fixture
     def email_agent(self, mock_agent, app):
-        """Create EmailAgent instance"""
+        """Create EmailAgent instance for testing"""
         with app.app_context():
-            # Initialize database with test app to fix SQLAlchemy registration
-            from src.swarm_director.models.base import db
-            db.init_app(app)
-            
-            from src.swarm_director.agents.email_agent import EmailAgent
-            return EmailAgent(db_agent=mock_agent)
+            return EmailAgent(mock_agent)
     
     @pytest.fixture
     def sample_task(self):
@@ -253,13 +248,19 @@ class TestEmailAgent:
         assert 'Email validation failed' in result['error']
 
     @patch('swarm_director.models.draft.Draft')
-    def test_compose_email_manual(self, mock_draft, email_agent, sample_task, app):
+    @patch('swarm_director.models.draft.DraftType')
+    @patch('swarm_director.models.draft.DraftStatus')
+    def test_compose_email_manual(self, mock_draft_status, mock_draft_type, mock_draft, email_agent, sample_task, app):
         """Test manual email composition"""
-        # Mock draft creation
+        # Mock draft creation and enums
         mock_draft_instance = Mock()
         mock_draft_instance.id = 1
         mock_draft_instance.save = Mock(return_value=True)  # Mock save to return success
         mock_draft.return_value = mock_draft_instance
+        
+        # Mock the enum values
+        mock_draft_type.EMAIL = 'email'
+        mock_draft_status.DRAFT = 'draft'
         
         compose_data = {
             'operation': 'compose',

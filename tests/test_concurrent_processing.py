@@ -116,8 +116,12 @@ class TestConcurrentProcessing:
         # Submit 10 concurrent tasks
         task_ids = []
         for i in range(10):
+            # Create a proper async function instead of lambda
+            async def task_func():
+                return await test_task(i)
+            
             task_id = await concurrency_manager.submit_task(
-                lambda i=i: test_task(i),
+                task_func,
                 priority=TaskPriority.NORMAL,
                 timeout=10.0,
                 check_resources=False  # Disable resource checking for tests
@@ -150,8 +154,12 @@ class TestConcurrentProcessing:
         submission_start = time.time()
         
         for i in range(15):
+            # Create a proper async function instead of lambda
+            async def task_func():
+                return await cpu_intensive_task(i)
+            
             task_id = await concurrency_manager.submit_task(
-                lambda i=i: cpu_intensive_task(i),
+                task_func,
                 priority=TaskPriority.NORMAL,
                 timeout=30.0,
                 check_resources=False,  # Disable resource checking for tests
