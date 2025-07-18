@@ -63,7 +63,7 @@ The SwarmDirector alignment audit and implementation project has been **successf
 - **Web Dashboard**: Basic interface for monitoring
 
 ### 🔄 AutoGen Integration Status
-- **Dependencies**: pyautogen==0.1.14 installed
+- **Dependencies**: ag2==0.1.14 installed
 - **Framework**: Optional imports implemented with graceful fallbacks
 - **Status**: Ready for future AutoGen integration when needed
 - **Current**: Basic agent hierarchy working without AutoGen dependency

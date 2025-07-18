@@ -143,7 +143,7 @@ ModuleNotFoundError: No module named 'swarm_director'
 **Reality**: Only basic agent hierarchy exists without AutoGen integration
 
 **File**: `requirements.txt` (Line 6)  
-**Issue**: Lists `pyautogen==0.1.14` but no AutoGen integration found in code
+**Issue**: Lists `ag2==0.1.14` but no AutoGen integration found in code
 
 ### 3.3 HIGH: Workflow Implementation Gap
 

@@ -293,7 +293,7 @@ class DevelopmentSetup:
         
         # Install optional dependencies
         if self.config.get('install_optional', True):
-            optional_deps = ['pyautogen', 'redis', 'celery']
+            optional_deps = ['ag2', 'redis', 'celery']
             for dep in optional_deps:
                 cmd = [pip_cmd, 'install', dep]
                 if not self._run_command(cmd, f"Installing optional dependency {dep}", allow_failure=True):
