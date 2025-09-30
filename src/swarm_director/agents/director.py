@@ -394,12 +394,15 @@ class DirectorAgent(SupervisorAgent):
         # Metrics and performance tracking  
         self.metrics = DirectorMetrics()
         
+        # Initialize legacy routing statistics (must come before registering department agents)
+        # so that any registration logic that updates routing_stats does not fail.
+        self.routing_stats = self._initialize_routing_stats()
+        
         # Initialize core components
         try:
             self.intent_keywords = self._initialize_intent_keywords()
             self.department_agents = {}  # Initialize as empty dict first
             self._initialize_department_agents()  # Then populate it
-            self.routing_stats = self._initialize_routing_stats()
             
             # Set state to active after successful initialization
             self._state = DirectorState.ACTIVE
@@ -953,6 +956,7 @@ class DirectorAgent(SupervisorAgent):
             return {
                 "status": "handled_directly",
                 "department": intended_department,
+                "routed_to": intended_department,  # alias for backward compatibility
                 "task_id": task.id,
                 "result": result,
                 "timestamp": datetime.utcnow().isoformat(),

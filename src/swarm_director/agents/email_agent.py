@@ -12,7 +12,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from flask import current_app
-from flask_mail import Message
+from flask_mail import Message, Mail
 
 from ..utils.autogen_integration import AutoGenToolAgent, AutoGenConfig
 from ..models.agent import Agent
@@ -31,6 +31,22 @@ class EmailAgent(AutoGenToolAgent):
     
     def __init__(self, name: str = "EmailAgent", config: Optional[AutoGenConfig] = None, 
                  db_agent: Optional[Agent] = None):
+        """Create a new EmailAgent.
+
+        Notes
+        -----
+        Historically some call-sites (and older tests) instantiated ``EmailAgent`` by
+        passing the database agent *positionally* instead of via the ``db_agent``
+        keyword.  This helper logic detects that scenario so that
+        ``EmailAgent(mock_agent)`` continues to work, while the preferred
+        ``EmailAgent(db_agent=mock_agent)`` syntax also behaves as expected.
+        """
+
+        # Handle legacy positional usage where the first arg is actually the db_agent
+        if isinstance(name, Agent) and db_agent is None:
+            db_agent = name
+            name = getattr(db_agent, "name", "EmailAgent") or "EmailAgent"
+        
         # Configure as ToolAgent with email-specific system message
         default_config = config or AutoGenConfig(
             temperature=0.3,  # Low temperature for consistent email operations
@@ -321,9 +337,15 @@ Thank you,
 
     def can_handle_task(self, task: Task) -> bool:
         """Check if this agent can handle the given task"""
+        import re
         task_text = (task.title + " " + (task.description or "")).lower()
         email_keywords = ["email", "mail", "send", "message", "notification", "smtp"]
-        return any(keyword in task_text for keyword in email_keywords)
+
+        # Use word-boundary regex to avoid accidental substring matches
+        for kw in email_keywords:
+            if re.search(rf"\b{re.escape(kw)}\b", task_text):
+                return True
+        return False
 
     def _send_email(self, task: Task, email_data: Dict) -> Dict[str, Any]:
         """Send email via SMTP"""
@@ -423,8 +445,10 @@ Thank you,
                     'sender': email_data.get('sender', current_app.config.get('MAIL_USERNAME', 'noreply@swarmdirector.com'))
                 }
             
-            # Create draft record
-            from swarm_director.models.draft import DraftType, DraftStatus
+            # Create draft record – import Draft inside the function so tests
+            # can patch ``swarm_director.models.draft.Draft`` easily.
+            from swarm_director.models.draft import Draft, DraftType, DraftStatus  # noqa: WPS433
+
             draft = Draft(
                 task_id=task.id,
                 content=composed_email['body'],
@@ -497,7 +521,7 @@ Thank you,
             errors.append(f"Invalid email format: {recipient}")
         
         # Optional: DNS/MX check for recipient domain (skip for test domains)
-        recipient_domain = recipient.split('@')[-1] if '@' in recipient else None
+        recipient_domain = recipient.split('@')[-1].lower() if '@' in recipient else None
         test_domains = ['example.com', 'test.com', 'localhost', '127.0.0.1']
 
         if recipient_domain and recipient_domain not in test_domains:
@@ -595,13 +619,23 @@ Thank you,
         """
         for attempt in range(retry_count):
             try:
-                if not current_app.config.get('MAIL_SERVER'):
+                # When MAIL_SERVER is not configured *and* we are NOT running
+                # under the Flask testing flag we short-circuit to avoid
+                # connection errors. During unit-tests we still want the
+                # code-path to exercise header creation so we deliberately
+                # fall through when ``current_app.testing`` is True.
+                if not current_app.config.get('MAIL_SERVER') and not current_app.testing:
                     logger.warning("MAIL_SERVER not configured - simulating email send")
                     if email_message:
                         email_message.mark_as_sent()
                     return True
-                from flask_mail import Mail, Message
+
+                # Import within the function to allow unit-tests to patch
+                # ``flask_mail.Mail`` and ``flask_mail.Message`` dynamically.
+                from flask_mail import Mail, Message  # noqa: WPS433
+
                 mail = current_app.extensions.get('mail') or Mail(current_app)
+
                 msg = Message(
                     subject=subject,
                     sender=sender,

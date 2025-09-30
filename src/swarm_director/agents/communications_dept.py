@@ -288,8 +288,10 @@ class CommunicationsDept(SupervisorAgent):
                 # Submit review tasks
                 future_to_agent = {}
                 for i, review_agent in enumerate(self.review_agents):
-                    # Create a review task
-                    review_task = Task(
+                    # Create a review task (import inside loop so tests can patch)
+                    from swarm_director.models.task import Task as TaskModel  # noqa: WPS433
+
+                    review_task = TaskModel(
                         title=f"Review: {task.title}",
                         description=f"Review content for task {task.id}",
                         type=task.type,

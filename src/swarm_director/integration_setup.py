@@ -9,12 +9,22 @@ import logging
 import os
 from typing import Dict, Any, Optional
 import click
+import asyncio
+from datetime import datetime
+
+from flask import current_app
 
 from .validation_plugin_integration import ValidationPluginIntegrator
 from .services.validation_service import ValidationService
 from .models.validation import ValidationRecord, QualityGateConfig, RollbackRecord
 from .models.plugin import PluginRecord, PluginInstallation, CapabilityGap, AgentTemplate
-from .models.base import db
+from .models import db
+from .plugins.plugin_registry import PluginRegistry
+from .plugins.plugin_manager import PluginManager
+from .plugins.capability_discovery import CapabilityDiscovery
+from .validation.quality_gate import QualityGate
+from .validation.validation_chain import ValidationChain
+from .validation.rollback_manager import RollbackManager
 
 logger = logging.getLogger(__name__)
 
@@ -324,9 +334,23 @@ def init_validation_plugin_integration(app, config: Optional[Dict[str, Any]] = N
 
 def get_validation_service() -> Optional[ValidationService]:
     """Get the global validation service instance"""
-    return integration.get_validation_service()
+    service = integration.get_validation_service()
+    if service is None:
+        try:
+            from .services.validation_service import ValidationService  # noqa: WPS433
+            service = ValidationService({})
+            integration.validation_service = service
+        except Exception:  # pragma: no cover
+            service = None
+    return service
 
 
 def get_integrator() -> Optional[ValidationPluginIntegrator]:
     """Get the global integrator instance"""
-    return integration.get_integrator()
+    integrator = integration.get_integrator()
+    if integrator is None:
+        service = get_validation_service()
+        if service:
+            integrator = service.integrator
+            integration.integrator = integrator
+    return integrator

@@ -30,6 +30,9 @@ class TestConversationAnalytics(unittest.TestCase):
         self.app_context.push()
         self.client = self.app.test_client()
         
+        # Initialize database with test app
+        db.init_app(self.app)
+        
         # Create database tables
         db.create_all()
         

@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from collections import Counter, defaultdict
 import re
 from ..models.conversation import Conversation, Message, ConversationAnalytics, MessageType, OrchestrationPattern
-from ..models.base import db
+from ..models import db
 
 
 class ConversationAnalyticsEngine:
@@ -25,7 +25,6 @@ class ConversationAnalyticsEngine:
     
     def analyze_conversation(self, conversation_id: int) -> Optional[ConversationAnalytics]:
         """Perform comprehensive analysis of a conversation"""
-        from swarm_director.models import db
         conversation = db.session.get(Conversation, conversation_id)
         if not conversation or not conversation.messages:
             return None
@@ -233,7 +232,6 @@ class ConversationAnalyticsEngine:
     
     def get_conversation_insights(self, conversation_id: int) -> Dict[str, Any]:
         """Get comprehensive insights for a conversation"""
-        from swarm_director.models import db
         conversation = db.session.get(Conversation, conversation_id)
         if not conversation:
             return {}
@@ -244,7 +242,7 @@ class ConversationAnalyticsEngine:
         insights = {
             'summary': self._generate_summary(conversation, analytics),
             'recommendations': self._generate_recommendations(conversation, analytics),
-            'metrics': analytics.to_dict() if analytics else {},
+            'analytics': analytics.to_dict() if analytics else {},
             'conversation_stats': {
                 'total_messages': len(conversation.messages),
                 'start_time': conversation.created_at.isoformat() if conversation.created_at else None,

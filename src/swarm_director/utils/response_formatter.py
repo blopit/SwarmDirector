@@ -77,6 +77,13 @@ class ResponseFormatter:
             else:
                 response_data['data'] = {'result': data, 'message': message}
         
+        # Promote commonly-accessed identifiers to the top-level for backwards
+        # compatibility with legacy API clients and unit-tests.
+        if isinstance(data, dict):
+            for key in ('task_id', 'async_task_id', 'id'):
+                if key in data:
+                    response_data[key] = data[key]
+        
         # Add metadata if provided
         if metadata:
             response_data['metadata'] = metadata

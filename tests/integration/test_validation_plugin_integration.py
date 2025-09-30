@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 from datetime import datetime
 
 from swarm_director.app import create_app
-from swarm_director.models.base import db
+from swarm_director.models import db
 from swarm_director.models.task import Task, TaskStatus, TaskPriority, TaskType
 from swarm_director.models.agent import Agent, AgentType, AgentStatus
 from swarm_director.integration_setup import get_validation_service, get_integrator
@@ -75,10 +75,10 @@ class TestValidationSystemIntegration:
         with app.app_context():
             service = get_validation_service()
             
-            # Re-fetch objects to avoid DetachedInstanceError
-            task = Task.query.get(sample_task.id)
-            tool_agent = Agent.query.get(sample_agents['tool'].id)
-            dept_agent = Agent.query.get(sample_agents['department'].id)
+            # Re-fetch objects to avoid DetachedInstanceError using proper session pattern
+            task = db.session.get(Task, sample_task.id)
+            tool_agent = db.session.get(Agent, sample_agents['tool'].id)
+            dept_agent = db.session.get(Agent, sample_agents['department'].id)
             
             # Mock the actual validation execution
             with patch.object(service.integrator, 'process_task_with_full_validation') as mock_validate:
@@ -101,7 +101,7 @@ class TestValidationSystemIntegration:
             service = get_validation_service()
             
             # Re-fetch the task in the current session to avoid DetachedInstanceError
-            task = Task.query.get(sample_task.id)
+            task = db.session.get(Task, sample_task.id)
             assert task is not None
 
             # Mock capability discovery
@@ -127,10 +127,10 @@ class TestErrorHandling:
         with app.app_context():
             service = get_validation_service()
 
-            # Re-fetch objects in the current session
-            task = Task.query.get(sample_task.id)
-            tool_agent = Agent.query.get(sample_agents['tool'].id)
-            dept_agent = Agent.query.get(sample_agents['department'].id)
+            # Re-fetch objects in the current session using proper session pattern
+            task = db.session.get(Task, sample_task.id)
+            tool_agent = db.session.get(Agent, sample_agents['tool'].id)
+            dept_agent = db.session.get(Agent, sample_agents['department'].id)
             assert task is not None
             assert tool_agent is not None
             assert dept_agent is not None

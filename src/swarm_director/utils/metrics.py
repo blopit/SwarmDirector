@@ -167,6 +167,21 @@ class EnhancedPerformanceMetrics:
         
         self.aggregator.add_metric(metric)
     
+    def track_gauge(self, metric_name: str, value: float, unit: str = 'count', tags: Dict[str, str] = None, correlation_id: str = None):
+        """Track a gauge metric (single value at a point in time)"""
+        timestamp = datetime.now()
+        
+        metric = MetricDataPoint(
+            name=metric_name,
+            value=value,
+            unit=unit,
+            timestamp=timestamp,
+            tags=tags or {},
+            correlation_id=correlation_id
+        )
+        
+        self.aggregator.add_metric(metric)
+    
     def get_endpoint_stats(self, endpoint: str) -> Dict[str, Any]:
         """Get statistics for a specific endpoint"""
         with self.lock:
@@ -245,3 +260,7 @@ def get_current_metrics_summary() -> Dict[str, Any]:
         'endpoint_stats': metrics_collector.get_all_endpoint_stats(),
         'timestamp': datetime.now().isoformat()
     }
+
+def get_metrics_collector() -> EnhancedPerformanceMetrics:
+    """Get the global metrics collector instance"""
+    return metrics_collector

@@ -10,19 +10,22 @@ import time
 from typing import Dict, List, Any, Optional, Callable
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import IntEnum
 import logging
 
-from .metrics import metrics_collector
+from .metrics import get_metrics_collector
 
 logger = logging.getLogger(__name__)
 
-class ResourceState(Enum):
+# Get the global metrics collector
+metrics_collector = get_metrics_collector()
+
+class ResourceState(IntEnum):
     """Resource utilization states"""
-    NORMAL = "normal"
-    HIGH = "high"
-    CRITICAL = "critical"
-    OVERLOADED = "overloaded"
+    NORMAL = 0
+    HIGH = 1
+    CRITICAL = 2
+    OVERLOADED = 3
 
 @dataclass
 class ResourceThresholds:

@@ -3,3 +3,119 @@ description:
 globs:
 alwaysApply: false
 ---
+---
+description: Guidelines for AI assistants integrating with Taskmaster MCP tools for task management workflows
+globs: **/*
+alwaysApply: true
+---
+
+# Taskmaster Integration for AI Assistants
+
+## Primary Tool Usage
+
+- **Use MCP Tools First**: Always prefer MCP tools (`initialize_project`, `get_tasks`, `add_task`, etc.) over CLI commands when available
+- **MCP Performance**: MCP tools provide structured data exchange and better error handling than CLI parsing
+- **CLI Fallback**: Use `task-master` CLI commands only when MCP tools are unavailable or for user training
+
+## Essential Workflow Pattern
+
+- **Start Sessions**: Begin with `get_tasks` to understand current project state
+- **Next Task Selection**: Use `next_task` to identify optimal work sequence based on dependencies
+- **Task Details**: Always call `get_task <id>` to understand implementation requirements before coding
+- **Context Review**: [Read task context documents][[memory:3099328533361309798]] from `.taskmaster/context/task_XXX/` before implementation
+
+## Task Breakdown Strategy
+
+- **Complexity Analysis**: Run `analyze_project_complexity` before expanding tasks
+- **Expansion Approach**: Use `expand_task` with `--research` and `--force` flags for thorough breakdown
+- **Subtask Management**: Clear existing subtasks with `clear_subtasks` before regenerating if needed
+
+## Implementation Logging Pattern
+
+```typescript
+// ✅ DO: Log implementation progress iteratively
+// 1. First: get_task to understand requirements
+// 2. Then: update_subtask with detailed implementation plan
+// 3. During: update_subtask with progress, discoveries, challenges
+// 4. Finally: set_task_status to 'done' when complete
+
+// Example progression:
+// update_subtask --id=5.2 --prompt='Implementation plan:\n- Files to modify: auth.py, models.py\n- Approach: JWT with session storage'
+// update_subtask --id=5.2 --prompt='Progress update:\n- JWT implementation working\n- Found issue with token refresh, using sliding window approach'
+```
+
+## Status Management Best Practices
+
+- **Granular Updates**: Update subtask status frequently (`pending` → `in-progress` → `done`)
+- **Dependency Awareness**: Check task dependencies before marking as done
+- **Verification**: Follow test strategies defined in tasks before completion
+
+## AI Call Patterns
+
+- **Inform Users**: Always notify users that AI-powered tools (`parse_prd`, `analyze_project_complexity`, `expand_task`, etc.) can take up to a minute
+- **Research Flag**: Use `--research` flag for better quality when appropriate API keys are available
+- **Batch Operations**: Use `expand_all` and `update` for efficiency when working with multiple tasks
+
+## Configuration Management
+
+- **Model Setup**: Use `models` MCP tool to configure AI models for different roles (main, research, fallback)
+- **API Keys**: Ensure proper API key configuration in `.cursor/mcp.json` env section for MCP context
+- **Project Root**: Always provide absolute paths for `projectRoot` parameter in MCP tools
+
+## Dependency Management
+
+- **Validation**: Run `validate_dependencies` before major changes
+- **Auto-Fix**: Use `fix_dependencies` to resolve circular references or missing task links
+- **Logical Order**: Respect dependency chains when selecting next tasks
+
+## Integration Points
+
+- **Git Workflow**: [Commit with descriptive messages][[memory:1322678528339015822]] and [ensure tests pass][[memory:7937940711446302569]] before pushing
+- **Test Integration**: Verify task completion against defined test strategies
+- **Documentation**: Update project docs when tasks introduce new patterns or conventions
+
+## Error Handling
+
+- **MCP Server Restart**: Restart MCP server if core Taskmaster logic in `scripts/modules` changes
+- **Tool Failures**: Fall back to CLI commands if MCP tools are unavailable
+- **Validation Errors**: Use `fix_dependencies` and regenerate task files with `generate` as needed
+
+## Development Session Structure
+
+```markdown
+1. Session Start:
+   - get_tasks (overview)
+   - next_task (what to work on)
+   - get_task <id> (understand requirements)
+
+2. Task Execution:
+   - Read context files in .taskmaster/context/task_XXX/
+   - set_task_status --id=<id> --status=in-progress
+   - Implement with iterative update_subtask logging
+   - Verify against test strategy
+
+3. Task Completion:
+   - set_task_status --id=<id> --status=done
+   - Update dependent tasks if implementation differs from plan
+   - generate (refresh task files)
+   - Commit changes with descriptive message
+
+4. Session End:
+   - get_tasks (review progress)
+   - identify next session priorities
+```
+
+## Common Patterns
+
+- **Task Discovery**: Use `add_task` when new requirements emerge during implementation
+- **Scope Changes**: Use `update_task` or `update` to handle implementation drift
+- **Reorganization**: Use `move_task` to restructure hierarchy as understanding evolves
+- **Complexity Management**: Regular `analyze_project_complexity` → `expand_task` cycles for detailed planning
+
+## Anti-Patterns to Avoid
+
+- **❌ DON'T**: Skip reading task context files before implementation
+- **❌ DON'T**: Mark tasks as done without following test strategies
+- **❌ DON'T**: Make implementation decisions without logging in subtasks
+- **❌ DON'T**: Ignore dependency relationships when selecting work
+- **❌ DON'T**: Use CLI commands when MCP tools are available and functional
