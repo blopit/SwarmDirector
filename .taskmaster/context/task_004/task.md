@@ -67,7 +67,7 @@ All file paths and import statements in this context have been updated to reflec
 - External API integrations beyond AutoGen framework
 
 ### Assumptions:
-- AutoGen framework (pyautogen==0.1.14) is installed and functional
+- AutoGen framework (ag2==0.1.14) is installed and functional
 - API keys for language models (OpenAI, etc.) can be configured
 - Flask application foundation exists (task_001 completed)
 - Database models are available for conversation tracking

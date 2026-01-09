@@ -33,7 +33,7 @@ All 16 main tasks and 55 subtasks have been successfully updated with task-speci
 **Resolution**:
 - Updated all dependency references to exact versions from requirements.txt:
   - Flask==2.3.3, SQLAlchemy==2.0.21, Flask-SQLAlchemy==3.0.5
-  - Flask-Migrate==4.0.5, Flask-Mail==0.9.1, pyautogen==0.1.14
+  - Flask-Migrate==4.0.5, Flask-Mail==0.9.1, ag2==0.1.14
   - python-dotenv==1.0.0, Werkzeug==2.3.7
 
 ### 4. Task-Specific Code Examples ✅ RESOLVED

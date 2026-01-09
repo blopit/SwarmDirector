@@ -303,7 +303,7 @@ Flask-Migrate==4.0.5
 Flask-Mail==0.9.1
 
 # AI Framework
-pyautogen==0.1.14
+ag2==0.1.14
 
 # Environment Management
 python-dotenv==1.0.0

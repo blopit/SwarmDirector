@@ -51,7 +51,7 @@ All file paths and import statements in this context have been updated to reflec
 ## 🗒️ Scope, Assumptions & Constraints
 
 ### In Scope:
-- AutoGen framework installation and verification (pyautogen==0.1.14)
+- AutoGen framework installation and verification (ag2==0.1.14)
 - Basic integration module creation in utils/autogen_integration.py
 - Configuration management for API keys and model settings
 - Basic AutoGen agent instantiation and testing

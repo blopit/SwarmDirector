@@ -35,7 +35,7 @@ Install AutoGen using pip, set up API keys for language models, configure enviro
 Implementation Analysis & Plan for Base Framework Setup:
 
 CURRENT STATE ANALYSIS:
-- AutoGen (pyautogen==0.1.14) is already installed in requirements.txt
+- AutoGen (ag2==0.1.14) is already installed in requirements.txt
 - Virtual environment is set up and AutoGen imports successfully (import autogen)
 - Basic autogen_helpers.py already exists in utils/ with helper functions
 - Available AutoGen classes: AssistantAgent, UserProxyAgent, GroupChat, GroupChatManager, etc.

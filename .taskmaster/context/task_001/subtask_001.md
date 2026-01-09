@@ -280,7 +280,7 @@ pip install -r requirements.txt
 
 # Verify installations
 pip list  # Should show all required packages
-pip show Flask SQLAlchemy pyautogen  # Verify key packages
+pip show Flask SQLAlchemy ag2  # Verify key packages
 ```
 
 ### Step 4: Directory Structure Verification ✅
@@ -323,7 +323,7 @@ Flask                    2.3.3
 Flask-Mail               0.9.1
 Flask-Migrate            4.0.5
 Flask-SQLAlchemy         3.0.5
-pyautogen                0.1.14
+ag2                0.1.14
 SQLAlchemy               2.0.21
 ```
 
